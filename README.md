@@ -22,18 +22,25 @@ A terminal-based world clock application for tracking time across multiple timez
 
 - Go 1.21 or later
 
-### Build from source
+### Quick Start
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/heliostatic/tui-clock.git
 cd tui-clock
-go build -o tui-clock
+make build
 ./tui-clock
 ```
 
-Or run directly:
+Or use `make run` to build and run in one step:
 ```bash
-go run .
+make run
+```
+
+### Install to System
+
+```bash
+make install
+# Binary will be installed to $(go env GOPATH)/bin/tui-clock
 ```
 
 ## Usage
@@ -120,28 +127,24 @@ See `config.example.yaml` for a full example configuration.
 
 ## Development
 
-### Running Tests
+### Quick Commands
 
-This project has comprehensive unit tests for core functionality:
+This project uses a `Makefile` for common development tasks:
 
 ```bash
-# Run all tests
-go test
-
-# Run tests with verbose output
-go test -v
-
-# Run tests with coverage
-go test -cover
-
-# Generate coverage report
-go test -coverprofile=coverage.out
-go tool cover -html=coverage.out
+make help           # Show all available commands
+make build          # Build the binary
+make test           # Run tests
+make test-coverage  # Run tests with coverage report
+make lint           # Run golangci-lint (requires golangci-lint installed)
+make fmt            # Format code with gofmt
+make clean          # Remove build artifacts
 ```
 
 ### Test Coverage
 
-The test suite covers:
+The project has comprehensive unit tests (~37% coverage, appropriate for a TUI app):
+
 - **Timezone calculations** - Time formatting, offset calculation, working hours detection
 - **Search functionality** - City/country/abbreviation search, ranking, case sensitivity
 - **Configuration** - Config loading/saving, defaults, validation
@@ -168,90 +171,22 @@ tui-clock/
 
 ## Contributing
 
-We welcome contributions! Here's how to get started:
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on:
 
-### Setting Up Development Environment
+- Setting up your development environment
+- Code style and best practices
+- Running tests and linters
+- Submitting pull requests
+- Adding new features
+- Reporting bugs
 
-1. Fork the repository
-2. Clone your fork:
-   ```bash
-   git clone https://github.com/your-username/tui-clock.git
-   cd tui-clock
-   ```
-3. Install dependencies:
-   ```bash
-   go mod download
-   ```
-4. Build and run:
-   ```bash
-   go build -o tui-clock
-   ./tui-clock
-   ```
-
-### Making Changes
-
-1. Create a feature branch:
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-2. Make your changes
-3. **Add tests** for new functionality
-4. Run tests to ensure everything works:
-   ```bash
-   go test -v
-   ```
-5. Run the app to test manually:
-   ```bash
-   go run .
-   ```
-
-### Code Style
-
-- Follow standard Go conventions
-- Use `gofmt` to format code
-- Keep functions focused and well-named
-- Add comments for non-obvious logic
-- Maintain the DRY principle (see `inputs.go` for helper patterns)
-
-### Submitting Changes
-
-1. Ensure all tests pass: `go test`
-2. Commit your changes with a clear message:
-   ```bash
-   git commit -m "Add feature: description of what you did"
-   ```
-3. Push to your fork:
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-4. Open a Pull Request with:
-   - Clear description of changes
-   - Why the change is needed
-   - Any breaking changes
-   - Screenshots (if UI changes)
-
-### Adding New Features
-
-**For new timezones/cities:**
-- Add entries to `timezones_data.go` (alphabetically within region)
-- Include city, country, IANA timezone, common abbreviations, and popularity rank
-
-**For new features:**
-- Update types in `types.go` if needed
-- Add business logic to `model.go`
-- Handle UI updates in `update.go` and `view.go`
-- **Write tests** in corresponding `*_test.go` files
-- Update this README if user-facing
-- Update `CLAUDE.md` if architecture changes
-
-### Bug Reports
-
-Found a bug? Please open an issue with:
-- Clear description of the problem
-- Steps to reproduce
-- Expected vs actual behavior
-- Your environment (OS, Go version, terminal)
-- Relevant config.yaml (if applicable)
+Quick start for contributors:
+```bash
+git clone https://github.com/your-username/tui-clock.git
+cd tui-clock
+make build
+make test
+```
 
 ## License
 
