@@ -10,7 +10,7 @@ import (
 type SearchResult struct {
 	City        CityTimezone
 	CurrentTime time.Time
-	Score       int // Higher is better
+	Score       int    // Higher is better
 	MatchField  string // What matched: "city", "country", "abbrev", "timezone"
 }
 

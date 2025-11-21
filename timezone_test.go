@@ -137,11 +137,11 @@ func TestComputeColleagueTimes(t *testing.T) {
 
 func TestWorkingHoursDetection(t *testing.T) {
 	tests := []struct {
-		name        string
-		hour        int
-		day         time.Weekday
-		expectWork  bool
-		expectWeek  bool
+		name       string
+		hour       int
+		day        time.Weekday
+		expectWork bool
+		expectWeek bool
 	}{
 		{"Weekday 10am", 10, time.Wednesday, true, false},
 		{"Weekday 9am (start)", 9, time.Monday, true, false},
