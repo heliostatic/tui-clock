@@ -4,6 +4,26 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// ColorScheme defines a complete set of colors for the application
+type ColorScheme struct {
+	Name string
+
+	// Timeline colors
+	SleepColor    lipgloss.Color
+	AwakeOffColor lipgloss.Color
+	WorkColor     lipgloss.Color
+	MarkerColor   lipgloss.Color
+	WeekendTint   lipgloss.Color
+
+	// UI colors
+	Primary   lipgloss.Color
+	Secondary lipgloss.Color
+	Success   lipgloss.Color
+	Warning   lipgloss.Color
+	Error     lipgloss.Color
+	Muted     lipgloss.Color
+}
+
 var (
 	// Color palette
 	primaryColor   = lipgloss.Color("86")  // Cyan
@@ -78,3 +98,66 @@ var (
 			Foreground(mutedColor).
 			Padding(1)
 )
+
+// Color scheme definitions
+var (
+	classicScheme = ColorScheme{
+		Name:          "classic",
+		SleepColor:    lipgloss.Color("240"), // Dark gray
+		AwakeOffColor: lipgloss.Color("248"), // Medium gray
+		WorkColor:     lipgloss.Color("42"),  // Green
+		MarkerColor:   lipgloss.Color("86"),  // Cyan
+		WeekendTint:   lipgloss.Color("141"), // Purple
+		Primary:       lipgloss.Color("86"),  // Cyan
+		Secondary:     lipgloss.Color("212"), // Pink
+		Success:       lipgloss.Color("42"),  // Green
+		Warning:       lipgloss.Color("214"), // Orange
+		Error:         lipgloss.Color("196"), // Red
+		Muted:         lipgloss.Color("240"), // Gray
+	}
+
+	darkScheme = ColorScheme{
+		Name:          "dark",
+		SleepColor:    lipgloss.Color("234"), // Very dark
+		AwakeOffColor: lipgloss.Color("238"), // Dark gray
+		WorkColor:     lipgloss.Color("71"),  // Muted green
+		MarkerColor:   lipgloss.Color("67"),  // Muted cyan
+		WeekendTint:   lipgloss.Color("96"),  // Muted purple
+		Primary:       lipgloss.Color("67"),  // Muted cyan
+		Secondary:     lipgloss.Color("132"), // Muted pink
+		Success:       lipgloss.Color("71"),  // Muted green
+		Warning:       lipgloss.Color("136"), // Muted orange
+		Error:         lipgloss.Color("131"), // Muted red
+		Muted:         lipgloss.Color("237"), // Dark gray
+	}
+
+	highContrastScheme = ColorScheme{
+		Name:          "high-contrast",
+		SleepColor:    lipgloss.Color("0"),  // Black
+		AwakeOffColor: lipgloss.Color("15"), // White
+		WorkColor:     lipgloss.Color("10"), // Bright green
+		MarkerColor:   lipgloss.Color("11"), // Bright yellow
+		WeekendTint:   lipgloss.Color("13"), // Bright magenta
+		Primary:       lipgloss.Color("14"), // Bright cyan
+		Secondary:     lipgloss.Color("15"), // White
+		Success:       lipgloss.Color("10"), // Bright green
+		Warning:       lipgloss.Color("11"), // Bright yellow
+		Error:         lipgloss.Color("9"),  // Bright red
+		Muted:         lipgloss.Color("8"),  // Gray
+	}
+
+	colorSchemes = map[string]ColorScheme{
+		"classic":       classicScheme,
+		"dark":          darkScheme,
+		"high-contrast": highContrastScheme,
+	}
+)
+
+// getCurrentColorScheme returns the color scheme by name, or classic as fallback
+func getCurrentColorScheme(schemeName string) ColorScheme {
+	scheme, exists := colorSchemes[schemeName]
+	if !exists {
+		return classicScheme // fallback
+	}
+	return scheme
+}

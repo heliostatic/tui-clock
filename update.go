@@ -52,6 +52,8 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleEditSearchTimezoneMode(msg)
 	case ModeHelp:
 		return m.handleHelpMode(msg)
+	case ModeTimeline:
+		return m.handleTimelineMode(msg)
 	default:
 		return m, nil
 	}
@@ -149,6 +151,10 @@ func (m Model) handleNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "?", "h":
 		// Show help
 		m.inputMode = ModeHelp
+
+	case "t":
+		// Enter timeline mode
+		m.inputMode = ModeTimeline
 	}
 
 	return m, nil
@@ -250,5 +256,62 @@ func (m Model) handleEditSearchTimezoneMode(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 // handleHelpMode handles input in help screen
 func (m Model) handleHelpMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	m.inputMode = ModeNormal
+	return m, nil
+}
+
+// handleTimelineMode handles input in timeline visualization mode
+func (m Model) handleTimelineMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "q", "esc", "t":
+		// Return to normal mode
+		m.inputMode = ModeNormal
+
+	case "up", "k":
+		// Scroll up
+		if m.scrollOffset > 0 {
+			m.scrollOffset--
+		}
+
+	case "down", "j":
+		// Scroll down
+		maxScroll := max(len(m.colleagues)-MaxVisible, 0)
+		if m.scrollOffset < maxScroll {
+			m.scrollOffset++
+		}
+
+	case "c":
+		// Cycle through color schemes
+		schemes := []string{"classic", "dark", "high-contrast"}
+		currentIndex := -1
+		for i, s := range schemes {
+			if s == m.config.ColorScheme {
+				currentIndex = i
+				break
+			}
+		}
+		nextIndex := (currentIndex + 1) % len(schemes)
+		m.config.ColorScheme = schemes[nextIndex]
+
+		if err := SaveConfig(m.configPath, m.config); err != nil {
+			m.errorMsg = err.Error()
+		}
+
+	case "m":
+		// Toggle timeline mode
+		if m.config.TimelineMode == "individual" {
+			m.config.TimelineMode = "shared"
+		} else {
+			m.config.TimelineMode = "individual"
+		}
+
+		if err := SaveConfig(m.configPath, m.config); err != nil {
+			m.errorMsg = err.Error()
+		}
+
+	case "?", "h":
+		// Show help
+		m.inputMode = ModeHelp
+	}
+
 	return m, nil
 }

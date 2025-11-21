@@ -8,10 +8,43 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// getNameStyle returns the appropriate style for a colleague's name based on their current status
+func getNameStyle(ct ColleagueTime) lipgloss.Style {
+	if ct.IsWeekend {
+		return weekendStyle
+	} else if ct.IsWorkingTime {
+		return workingStyle.Bold(true)
+	} else {
+		return offHoursStyle
+	}
+}
+
+// renderScrollIndicators returns top and bottom scroll indicators if needed
+func renderScrollIndicators(scrollOffset, visible, total int) (string, string) {
+	var topIndicator, bottomIndicator string
+
+	if scrollOffset > 0 {
+		topIndicator = footerStyle.Render(
+			fmt.Sprintf("  ▲ %d more above\n", scrollOffset))
+	}
+
+	if scrollOffset+visible < total {
+		remaining := total - (scrollOffset + visible)
+		bottomIndicator = footerStyle.Render(
+			fmt.Sprintf("  ▼ %d more below\n", remaining))
+	}
+
+	return topIndicator, bottomIndicator
+}
+
 // View renders the UI
 func (m Model) View() string {
 	if m.inputMode == ModeHelp {
 		return m.renderHelp()
+	}
+
+	if m.inputMode == ModeTimeline {
+		return m.renderTimeline()
 	}
 
 	var b strings.Builder
@@ -84,15 +117,11 @@ func (m Model) renderColleagues() string {
 
 	// Calculate visible range
 	start := m.scrollOffset
-	end := start + MaxVisible
-	if end > len(m.colleagues) {
-		end = len(m.colleagues)
-	}
+	end := min(start+MaxVisible, len(m.colleagues))
 
-	// Show scroll indicator at top if needed
-	if m.scrollOffset > 0 {
-		b.WriteString(footerStyle.Render(fmt.Sprintf("  ▲ %d more above\n", m.scrollOffset)))
-	}
+	// Show scroll indicators
+	topIndicator, bottomIndicator := renderScrollIndicators(m.scrollOffset, MaxVisible, len(m.colleagues))
+	b.WriteString(topIndicator)
 
 	// Render visible colleagues
 	for i := start; i < end; i++ {
@@ -101,11 +130,8 @@ func (m Model) renderColleagues() string {
 		b.WriteString("\n")
 	}
 
-	// Show scroll indicator at bottom if needed
-	if end < len(m.colleagues) {
-		remaining := len(m.colleagues) - end
-		b.WriteString(footerStyle.Render(fmt.Sprintf("  ▼ %d more below\n", remaining)))
-	}
+	// Show bottom scroll indicator
+	b.WriteString(bottomIndicator)
 
 	return b.String()
 }
@@ -122,17 +148,14 @@ func (m Model) renderColleagueRow(index int, ct ColleagueTime) string {
 
 	// Status indicator (working/off-hours/weekend)
 	var statusIndicator string
-	var timeStyle lipgloss.Style
+	timeStyle := getNameStyle(ct)
 
 	if ct.IsWeekend {
 		statusIndicator = "◆"
-		timeStyle = weekendStyle
 	} else if ct.IsWorkingTime {
 		statusIndicator = "●"
-		timeStyle = workingStyle
 	} else {
 		statusIndicator = "○"
-		timeStyle = offHoursStyle
 	}
 
 	// Format time
@@ -166,15 +189,11 @@ func (m Model) renderSearchResults() string {
 	// Calculate visible range
 	maxSearchVisible := 10
 	start := m.searchScrollOffset
-	end := start + maxSearchVisible
-	if end > len(m.searchResults) {
-		end = len(m.searchResults)
-	}
+	end := min(start+maxSearchVisible, len(m.searchResults))
 
-	// Show scroll indicator at top if needed
-	if m.searchScrollOffset > 0 {
-		b.WriteString(footerStyle.Render(fmt.Sprintf("  ▲ %d more above\n", m.searchScrollOffset)))
-	}
+	// Show scroll indicators
+	topIndicator, bottomIndicator := renderScrollIndicators(m.searchScrollOffset, maxSearchVisible, len(m.searchResults))
+	b.WriteString(topIndicator)
 
 	// Render visible search results
 	for i := start; i < end; i++ {
@@ -183,10 +202,9 @@ func (m Model) renderSearchResults() string {
 		b.WriteString("\n")
 	}
 
-	// Show scroll indicator at bottom if needed
-	if end < len(m.searchResults) {
-		remaining := len(m.searchResults) - end
-		b.WriteString(footerStyle.Render(fmt.Sprintf("  ▼ %d more below", remaining)))
+	// Show bottom scroll indicator (remove trailing newline for search results)
+	if bottomIndicator != "" {
+		b.WriteString(strings.TrimSuffix(bottomIndicator, "\n"))
 	}
 
 	return b.String()
@@ -231,6 +249,7 @@ func (m Model) renderFooter() string {
 		"e edit",
 		"d delete",
 		"f format",
+		"t timeline",
 		"? help",
 		"q quit",
 	}
@@ -251,6 +270,19 @@ ACTIONS
   e            Edit selected colleague
   d            Delete selected colleague
   f            Toggle time format (12h/24h)
+  t            Timeline visualization mode
+
+TIMELINE MODE
+  t            Return to normal mode
+  m            Toggle mode (individual/shared)
+  c            Cycle color schemes
+  ↑/↓, k/j     Scroll through colleagues
+
+TIMELINE LEGEND
+  ░ Dark       Sleep hours (11pm-7am)
+  ▓ Gray       Off-hours (awake but not working)
+  █ Green      Work hours (9am-5pm, weekdays)
+  █ Cyan       Current time (highlighted in cyan)
 
 STATUS INDICATORS
   ● Green      Working hours (9am-5pm, weekdays)

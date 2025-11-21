@@ -13,6 +13,8 @@ func DefaultConfig() Config {
 	return Config{
 		TimeFormat:            "24h",
 		LocationDisplayFormat: "auto",
+		ColorScheme:           "classic",
+		TimelineMode:          "individual",
 		Colleagues: []Colleague{
 			{
 				Name:      "Alice (New York)",
@@ -83,6 +85,16 @@ func LoadConfig(path string) (Config, error) {
 	// Set default location display format if not specified
 	if config.LocationDisplayFormat == "" {
 		config.LocationDisplayFormat = "auto"
+	}
+
+	// Set default color scheme if not specified
+	if config.ColorScheme == "" {
+		config.ColorScheme = "classic"
+	}
+
+	// Set default timeline mode if not specified
+	if config.TimelineMode == "" {
+		config.TimelineMode = "individual"
 	}
 
 	return config, nil
