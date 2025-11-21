@@ -117,7 +117,7 @@ func (m Model) renderColleagueRow(index int, ct ColleagueTime) string {
 	cursor := "  "
 	style := rowStyle
 
-	if index == m.cursor {
+	if m.cursor >= 0 && index == m.cursor {
 		cursor = "▶ "
 		style = selectedRowStyle
 	}

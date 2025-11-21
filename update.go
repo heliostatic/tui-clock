@@ -56,7 +56,10 @@ func (m Model) handleNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 
 	case "up", "k":
-		if m.cursor > 0 {
+		// If no selection, activate selection at first item
+		if m.cursor == -1 && len(m.colleagues) > 0 {
+			m.cursor = 0
+		} else if m.cursor > 0 {
 			m.cursor--
 			// Adjust scroll if cursor goes above visible area
 			if m.cursor < m.scrollOffset {
@@ -65,7 +68,10 @@ func (m Model) handleNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case "down", "j":
-		if m.cursor < len(m.colleagues)-1 {
+		// If no selection, activate selection at first item
+		if m.cursor == -1 && len(m.colleagues) > 0 {
+			m.cursor = 0
+		} else if m.cursor < len(m.colleagues)-1 {
 			m.cursor++
 			// Adjust scroll if cursor goes below visible area
 			maxVisible := 8
@@ -82,16 +88,19 @@ func (m Model) handleNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.errorMsg = ""
 
 	case "d":
-		// Delete selected colleague
-		if len(m.colleagues) > 0 && m.cursor < len(m.colleagues) {
+		// Delete selected colleague (only if something is selected)
+		if m.cursor >= 0 && m.cursor < len(m.colleagues) {
 			if err := m.deleteColleague(m.cursor); err != nil {
 				m.errorMsg = err.Error()
+			} else {
+				// Return to no selection after delete
+				m.cursor = -1
 			}
 		}
 
 	case "e":
-		// Edit selected colleague
-		if len(m.colleagues) > 0 && m.cursor < len(m.colleagues) {
+		// Edit selected colleague (only if something is selected)
+		if m.cursor >= 0 && m.cursor < len(m.colleagues) {
 			m.inputMode = ModeEditName
 			m.editIndex = m.cursor
 			m.nameInput = newNameInputWithValue(m.colleagues[m.cursor].Colleague.Name)

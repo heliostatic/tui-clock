@@ -23,7 +23,7 @@ func NewModel(config Config, configPath string) Model {
 		localTimezone: localTz,
 		inputMode:     ModeNormal,
 		nameInput:     nameInput,
-		cursor:        0,
+		cursor:        -1, // Start with no selection for cleaner monitoring view
 		scrollOffset:  0,
 		// Initialize search state
 		searchQuery:        "",
