@@ -18,13 +18,15 @@ func NewModel(config Config, configPath string) Model {
 	nameInput := newNameInput()
 
 	m := Model{
-		config:        config,
-		configPath:    configPath,
-		localTimezone: localTz,
-		inputMode:     ModeNormal,
-		nameInput:     nameInput,
-		cursor:        -1, // Start with no selection for cleaner monitoring view
-		scrollOffset:  0,
+		config:          config,
+		configPath:      configPath,
+		localTimezone:   localTz,
+		inputMode:       ModeNormal,
+		nameInput:       nameInput,
+		cursor:          -1,    // Start with no selection for cleaner monitoring view
+		selectionActive: false, // No visual selection initially
+		lastActionTime:  time.Now(),
+		scrollOffset:    0,
 		// Initialize search state
 		searchQuery:        "",
 		searchResults:      []SearchResult{},

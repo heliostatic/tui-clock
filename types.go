@@ -16,8 +16,8 @@ type Colleague struct {
 
 // Config represents the application configuration
 type Config struct {
-	TimeFormat            string      `yaml:"time_format"`              // "12h" or "24h"
-	LocationDisplayFormat string      `yaml:"location_display_format"`  // "auto", "city", "timezone", "abbreviation"
+	TimeFormat            string      `yaml:"time_format"`             // "12h" or "24h"
+	LocationDisplayFormat string      `yaml:"location_display_format"` // "auto", "city", "timezone", "abbreviation"
 	Colleagues            []Colleague `yaml:"colleagues"`
 }
 
@@ -36,7 +36,7 @@ type InputMode int
 const (
 	ModeNormal InputMode = iota
 	ModeAddName
-	ModeSearchTimezone     // New mode for searching/selecting timezone
+	ModeSearchTimezone // New mode for searching/selecting timezone
 	ModeEditName
 	ModeEditSearchTimezone // Edit mode for timezone search
 	ModeHelp
@@ -44,18 +44,20 @@ const (
 
 // Model represents the Bubbletea application state
 type Model struct {
-	config        Config
-	configPath    string
-	colleagues    []ColleagueTime
-	localTimezone *time.Location
-	cursor        int         // Selected item index
-	scrollOffset  int         // Scroll position
-	inputMode     InputMode   // Current input mode
-	nameInput     textinput.Model
-	editIndex     int    // Index of colleague being edited
-	errorMsg      string // Error message to display
-	width         int    // Terminal width
-	height        int    // Terminal height
+	config          Config
+	configPath      string
+	colleagues      []ColleagueTime
+	localTimezone   *time.Location
+	cursor          int       // Selected item index (or last known position)
+	selectionActive bool      // Whether selection is visually shown
+	lastActionTime  time.Time // Time of last user action (for auto-hide)
+	scrollOffset    int       // Scroll position
+	inputMode       InputMode // Current input mode
+	nameInput       textinput.Model
+	editIndex       int    // Index of colleague being edited
+	errorMsg        string // Error message to display
+	width           int    // Terminal width
+	height          int    // Terminal height
 
 	// Timezone search state
 	searchQuery        string         // Current search query (what user typed)
