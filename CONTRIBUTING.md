@@ -95,11 +95,12 @@ tui-clock/
 ├── model.go             # Bubbletea model & business logic
 ├── update.go            # Input handling & state updates
 ├── view.go              # UI rendering
+├── timeline.go          # Timeline visualization (individual & shared modes)
 ├── config.go            # YAML config management
 ├── timezone.go          # Time calculations
 ├── timezones_data.go    # City database (200+ cities)
 ├── timezone_search.go   # Search & ranking logic
-├── styles.go            # UI styling with Lipgloss
+├── styles.go            # UI styling with Lipgloss (including color schemes)
 ├── inputs.go            # Input helpers & utilities
 └── *_test.go            # Unit tests
 ```
@@ -200,6 +201,97 @@ Add entries to `timezones_data.go` (alphabetically within region):
 4. **Write tests** in corresponding `*_test.go` files
 5. **Update README.md** if user-facing changes
 6. **Update CLAUDE.md** if architecture changes
+
+### Working with Timeline Code
+
+Timeline visualization is implemented in `timeline.go` (~500 lines). Here's how to work with it:
+
+**Adding Timeline Features:**
+
+Bar generation (how activities are displayed):
+- Modify `renderIndividualBar()` for individual mode changes
+- Modify `renderSharedBar()` for shared mode changes
+- Both functions generate a `[]rune` representing 24 hours
+
+Layout changes:
+- Modify `renderTimeline()` - main orchestration function
+- Modify `renderTimelineRow()` or `renderSharedTimelineRow()` for row format
+
+**Adding a New Color Scheme:**
+
+Add to the `colorSchemes` map in `styles.go`:
+
+```go
+var myScheme = ColorScheme{
+    Name:          "my-scheme",
+    SleepColor:    lipgloss.Color("#your-color"),
+    AwakeOffColor: lipgloss.Color("#your-color"),
+    WorkColor:     lipgloss.Color("#your-color"),
+    MarkerColor:   lipgloss.Color("#your-color"),
+    WeekendTint:   lipgloss.Color("#your-color"),
+    Primary:       lipgloss.Color("#your-color"),
+    // ... other fields
+}
+
+var colorSchemes = map[string]ColorScheme{
+    "classic":       classicScheme,
+    "dark":          darkScheme,
+    "high-contrast": highContrastScheme,
+    "my-scheme":     myScheme,  // Add here
+}
+```
+
+Then update cycle logic in `update.go`:
+```go
+schemes := []string{"classic", "dark", "high-contrast", "my-scheme"}
+```
+
+**Testing Timeline Features:**
+
+Timeline-specific tests should go in `timeline_test.go`:
+
+```go
+func TestIsInTimeRange(t *testing.T) {
+    tests := []struct {
+        name     string
+        hour     int
+        start    int
+        end      int
+        expected bool
+    }{
+        {"within range", 10, 9, 17, true},
+        {"before range", 8, 9, 17, false},
+        {"wraparound within", 1, 23, 7, true},
+        {"wraparound before", 22, 23, 7, false},
+    }
+    // ... test implementation
+}
+```
+
+**Key Testing Areas:**
+- `isInTimeRange()` - Handles wraparound cases (23:00-07:00)
+- Bar width calculations at various terminal sizes
+- Character distribution in generated bars
+- Offset shifting in shared mode (positive/negative offsets)
+- Color scheme validity
+
+**Common Patterns:**
+
+- **Fixed-width fields**: Use `truncateOrPad(s, width)` for alignment
+- **Hour range checks**: Use `isInTimeRange(hour, start, end)` - handles wraparound automatically
+- **Colors**: Use `ColorScheme` getters, never hardcode colors
+- **Work/sleep hours**: Use `Colleague.GetWorkStart()`, `GetSleepStart()`, etc. for defaults
+- **Scroll indicators**: Use `renderScrollIndicators()` for consistent pagination
+
+**Testing Coverage Goals:**
+- Core utility functions: >80%
+- Bar generation: >75%
+- Integration: Key user flows tested
+
+Run timeline-specific tests:
+```bash
+go test -v -run Timeline
+```
 
 ### Examples
 

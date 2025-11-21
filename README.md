@@ -15,6 +15,8 @@ A terminal-based world clock application for tracking time across multiple timez
 - ✏️ Interactive editing (add/edit/delete colleagues)
 - 💾 Persistent configuration
 - 📜 Scrolling support for 8+ colleagues
+- 📊 **Timeline visualization mode** - visualize everyone's day at a glance
+- 🎨 **Multiple color schemes** - classic, dark, and high-contrast modes
 
 ## Installation
 
@@ -61,6 +63,8 @@ On first run, a default configuration file will be created at `~/.config/tui-clo
 
 ## Keyboard Controls
 
+### Normal Mode
+
 | Key | Action |
 |-----|--------|
 | `↑` / `k` | Move cursor up |
@@ -69,9 +73,22 @@ On first run, a default configuration file will be created at `~/.config/tui-clo
 | `e` | Edit selected colleague |
 | `d` | Delete selected colleague |
 | `f` | Toggle time format (12h ↔ 24h) |
+| `t` | Enter timeline visualization mode |
 | `?` / `h` | Show help screen |
 | `q` / `Esc` | Quit |
 | `Ctrl+C` | Force quit |
+
+### Timeline Mode
+
+| Key | Action |
+|-----|--------|
+| `t` | Return to normal mode |
+| `m` | Toggle mode (individual ↔ shared) |
+| `c` | Cycle color schemes |
+| `↑` / `k` | Scroll up |
+| `↓` / `j` | Scroll down |
+| `?` | Show help screen |
+| `q` / `Esc` | Quit |
 
 ## Status Indicators
 
@@ -79,18 +96,80 @@ On first run, a default configuration file will be created at `~/.config/tui-clo
 - **○ Gray** - Off hours (outside 9am-5pm or weekends)
 - **◆ Purple** - Weekend (Saturday/Sunday)
 
+## Timeline Visualization
+
+Press `t` to enter **timeline mode** - visualize everyone's day at a glance!
+
+### Two Visualization Modes
+
+**Individual Mode** - See each person's local day:
+```
+Katherine (EST)      14:49:34  [░░░▓▓▓████████████|█████▓▓▓░░░░░]
+Austin (Lincoln)     13:49:34  [░░░▓▓▓█████████████|████▓▓▓░░░░░]
+Ben (EST)            14:49:34  [░░░▓▓▓████████████|█████▓▓▓░░░░░]
+                                0    6    12   18   24
+```
+- Each bar shows their full 24-hour day (0-24 in their timezone)
+- Current time marker highlights their local time
+- See what they're doing throughout their entire day
+
+**Shared Mode** - See who's available RIGHT NOW:
+```
+Katherine (EST)      14:49:34  [    ████████████|█████        ]
+Austin (Lincoln)     13:49:34  [  █████████████|████          ]
+Ben (EST)            14:49:34  [    ████████████|█████        ]
+                                0    6    12   18   24
+```
+- Bars aligned to **your** local time (0-24 in your timezone)
+- Activities shifted to show when they're working/sleeping relative to you
+- Current time marker shows your local time (same position for everyone)
+- Instantly see who's available during your working hours
+
+### Timeline Legend
+
+- **░** - Sleep hours (default: 11pm-7am)
+- **▓** - Off-hours (awake but not working)
+- **█** - Work hours (default: 9am-5pm, weekdays only)
+- **Highlighted character** - Current time (cyan/bold)
+
+### Color Schemes
+
+Press `c` to cycle through three built-in color schemes:
+
+1. **Classic** - Vibrant colors (cyan, green, purple) for maximum visibility
+2. **Dark** - Muted night-mode colors for low-light environments
+3. **High Contrast** - Accessibility-focused with strong differentiation
+
+Your color scheme preference is automatically saved to your config file.
+
+### How It Works
+
+- **Individual mode**: Each timeline shows 0-24 hours in that person's timezone. When it's 3pm for them, the marker is at the 3pm position on their bar.
+
+- **Shared mode**: All timelines show 0-24 hours in YOUR timezone. Activities are shifted so you can see what each person is doing at any given hour of YOUR day.
+
+**Example**: If Katherine is in EST (+5h ahead of PST) and it's noon in PST:
+- In individual mode: Her marker is at 17:00 (5pm) on her 0-24 bar
+- In shared mode: Her work block appears shifted right, marker at 12:00 (your noon)
+
+Press `m` to toggle between modes and see the difference!
+
 ## Configuration
 
 The configuration file uses YAML format:
 
 ```yaml
-time_format: "24h"  # Options: "12h" or "24h"
+time_format: "24h"        # Options: "12h" or "24h"
+color_scheme: "classic"   # Options: "classic", "dark", "high-contrast"
+timeline_mode: "individual"  # Options: "individual", "shared"
 
 colleagues:
   - name: "Alice (New York)"
     timezone: "America/New_York"
-    work_start: 9   # 9am in 24h format
-    work_end: 17    # 5pm in 24h format
+    work_start: 9    # 9am in 24h format (default if omitted)
+    work_end: 17     # 5pm in 24h format (default if omitted)
+    sleep_start: 23  # 11pm in 24h format (default if omitted)
+    sleep_end: 7     # 7am in 24h format (default if omitted)
 
   - name: "Bob (London)"
     timezone: "Europe/London"
@@ -160,11 +239,12 @@ tui-clock/
 ├── model.go             # Bubbletea model & business logic
 ├── update.go            # Input handling & state updates
 ├── view.go              # UI rendering
+├── timeline.go          # Timeline visualization (individual & shared modes)
 ├── config.go            # YAML config management
 ├── timezone.go          # Time calculations
 ├── timezones_data.go    # City database (200+ cities)
 ├── timezone_search.go   # Search & ranking logic
-├── styles.go            # UI styling
+├── styles.go            # UI styling (including color schemes)
 ├── inputs.go            # Input helpers & utilities
 └── *_test.go           # Unit tests
 ```
