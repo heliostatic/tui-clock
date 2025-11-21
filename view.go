@@ -8,8 +8,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-const maxVisible = 8 // Maximum colleagues visible at once
-
 // View renders the UI
 func (m Model) View() string {
 	if m.inputMode == ModeHelp {
@@ -86,7 +84,7 @@ func (m Model) renderColleagues() string {
 
 	// Calculate visible range
 	start := m.scrollOffset
-	end := start + maxVisible
+	end := start + MaxVisible
 	if end > len(m.colleagues) {
 		end = len(m.colleagues)
 	}

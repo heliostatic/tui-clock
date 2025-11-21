@@ -1,6 +1,8 @@
 package main
 
 import (
+	"time"
+
 	"github.com/charmbracelet/bubbles/textinput"
 )
 
@@ -84,4 +86,21 @@ func (m *Model) handleSearchNavigation(key string) bool {
 		}
 		return false
 	}
+}
+
+// reactivateSelection reactivates a hidden selection without performing any action
+// Returns true if the keypress was consumed (selection was reactivated), false otherwise
+func (m *Model) reactivateSelection() bool {
+	if m.cursor >= 0 && !m.selectionActive {
+		m.selectionActive = true
+		m.lastActionTime = time.Now()
+		return true // Consumed the keypress
+	}
+	return false // Continue processing
+}
+
+// activateSelection activates the selection and updates the last action time
+func (m *Model) activateSelection() {
+	m.selectionActive = true
+	m.lastActionTime = time.Now()
 }

@@ -20,8 +20,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case TickMsg:
 		m.updateColleagueTimes()
 
-		// Auto-hide selection after 3 seconds of inactivity
-		if m.selectionActive && time.Since(m.lastActionTime) > 3*time.Second {
+		// Auto-hide selection after inactivity timeout
+		if m.selectionActive && time.Since(m.lastActionTime) > AutoHideTimeout {
 			m.selectionActive = false
 		}
 
@@ -65,17 +65,14 @@ func (m Model) handleNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "up", "k":
 		// If selection is hidden (inactive), reactivate it first without moving
-		if m.cursor >= 0 && !m.selectionActive {
-			m.selectionActive = true
-			m.lastActionTime = time.Now()
+		if m.reactivateSelection() {
 			return m, nil
 		}
 
 		// If no selection at all, activate at first item
 		if m.cursor == -1 && len(m.colleagues) > 0 {
 			m.cursor = 0
-			m.selectionActive = true
-			m.lastActionTime = time.Now()
+			m.activateSelection()
 		} else if m.cursor > 0 {
 			m.cursor--
 			m.lastActionTime = time.Now()
@@ -87,24 +84,20 @@ func (m Model) handleNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "down", "j":
 		// If selection is hidden (inactive), reactivate it first without moving
-		if m.cursor >= 0 && !m.selectionActive {
-			m.selectionActive = true
-			m.lastActionTime = time.Now()
+		if m.reactivateSelection() {
 			return m, nil
 		}
 
 		// If no selection at all, activate at first item
 		if m.cursor == -1 && len(m.colleagues) > 0 {
 			m.cursor = 0
-			m.selectionActive = true
-			m.lastActionTime = time.Now()
+			m.activateSelection()
 		} else if m.cursor < len(m.colleagues)-1 {
 			m.cursor++
 			m.lastActionTime = time.Now()
 			// Adjust scroll if cursor goes below visible area
-			maxVisible := 8
-			if m.cursor >= m.scrollOffset+maxVisible {
-				m.scrollOffset = m.cursor - maxVisible + 1
+			if m.cursor >= m.scrollOffset+MaxVisible {
+				m.scrollOffset = m.cursor - MaxVisible + 1
 			}
 		}
 
@@ -117,9 +110,7 @@ func (m Model) handleNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "d":
 		// If selection is hidden (inactive), reactivate it first without deleting
-		if m.cursor >= 0 && !m.selectionActive {
-			m.selectionActive = true
-			m.lastActionTime = time.Now()
+		if m.reactivateSelection() {
 			return m, nil
 		}
 
@@ -136,9 +127,7 @@ func (m Model) handleNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "e":
 		// If selection is hidden (inactive), reactivate it first without editing
-		if m.cursor >= 0 && !m.selectionActive {
-			m.selectionActive = true
-			m.lastActionTime = time.Now()
+		if m.reactivateSelection() {
 			return m, nil
 		}
 
@@ -196,8 +185,7 @@ func (m Model) handleSearchTimezoneMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			} else {
 				m.exitToNormal()
 				m.cursor = len(m.colleagues) - 1
-				m.selectionActive = true
-				m.lastActionTime = time.Now()
+				m.activateSelection()
 			}
 		}
 		return m, nil
@@ -243,8 +231,7 @@ func (m Model) handleEditSearchTimezoneMode(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 				m.errorMsg = err.Error()
 			} else {
 				m.exitToNormal()
-				m.selectionActive = true
-				m.lastActionTime = time.Now()
+				m.activateSelection()
 			}
 		}
 		return m, nil

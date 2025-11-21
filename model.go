@@ -52,6 +52,16 @@ func tick() tea.Cmd {
 	})
 }
 
+// newColleague creates a new colleague with default work hours
+func newColleague(name, timezone string) Colleague {
+	return Colleague{
+		Name:      name,
+		Timezone:  timezone,
+		WorkStart: DefaultWorkStart,
+		WorkEnd:   DefaultWorkEnd,
+	}
+}
+
 // updateColleagueTimes recomputes all colleague times
 func (m *Model) updateColleagueTimes() {
 	colleagues, _ := ComputeColleagueTimes(m.config.Colleagues, m.localTimezone, m.config.TimeFormat)
@@ -70,12 +80,7 @@ func (m *Model) addColleague(name, timezone string) error {
 		return err
 	}
 
-	colleague := Colleague{
-		Name:      name,
-		Timezone:  timezone,
-		WorkStart: 9,
-		WorkEnd:   17,
-	}
+	colleague := newColleague(name, timezone)
 
 	m.config.Colleagues = append(m.config.Colleagues, colleague)
 	m.updateColleagueTimes()
@@ -139,12 +144,7 @@ func (m *Model) addColleagueFromSearch(baseName string, result SearchResult) err
 	// Use smart append logic to format the name
 	finalName := GetDisplayNameForColleague(baseName, result.City, m.searchQuery, m.config.LocationDisplayFormat)
 
-	colleague := Colleague{
-		Name:      finalName,
-		Timezone:  result.City.Timezone,
-		WorkStart: 9,
-		WorkEnd:   17,
-	}
+	colleague := newColleague(finalName, result.City.Timezone)
 
 	m.config.Colleagues = append(m.config.Colleagues, colleague)
 	m.updateColleagueTimes()

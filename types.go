@@ -42,6 +42,14 @@ const (
 	ModeHelp
 )
 
+// Application constants
+const (
+	AutoHideTimeout  = 3 * time.Second // Time before selection indicator hides
+	DefaultWorkStart = 9               // Default work start hour (9am)
+	DefaultWorkEnd   = 17              // Default work end hour (5pm)
+	MaxVisible       = 8               // Maximum colleagues visible at once
+)
+
 // Model represents the Bubbletea application state
 type Model struct {
 	config          Config
