@@ -189,12 +189,9 @@ func (m Model) renderHourLabels(barWidth int, leftPadding int) string {
 
 		// Calculate start position to center the label
 		// +1 accounts for the opening bracket
-		startPos := centerPos - (labelLen / 2) + 1
-
-		// Ensure we don't go out of bounds
-		if startPos < 1 {
-			startPos = 1
-		}
+		startPos := max(
+			// Ensure we don't go out of bounds
+			centerPos-(labelLen/2)+1, 1)
 		if startPos+labelLen > barWidth+1 {
 			startPos = barWidth + 1 - labelLen
 		}
@@ -336,12 +333,9 @@ func (m Model) renderSharedTimelineHeader() string {
 
 		// Calculate start position to center the label
 		// +1 accounts for the opening bracket
-		startPos := centerPos - (labelLen / 2) + 1
-
-		// Ensure we don't go out of bounds
-		if startPos < 1 {
-			startPos = 1
-		}
+		startPos := max(
+			// Ensure we don't go out of bounds
+			centerPos-(labelLen/2)+1, 1)
 		if startPos+labelLen > barWidth+1 {
 			startPos = barWidth + 1 - labelLen
 		}
