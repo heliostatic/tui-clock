@@ -1,0 +1,41 @@
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    - errcheck      # Check for unchecked errors
+    - gosimple      # Simplify code
+    - govet         # Reports suspicious constructs
+    - ineffassign   # Detect ineffectual assignments
+    - staticcheck   # Advanced static analysis
+    - unused        # Find unused code
+    - gofmt         # Check code formatting
+    - goimports     # Check import formatting
+    - misspell      # Spell checker
+    - revive        # Fast, configurable linter
+    - unconvert     # Remove unnecessary type conversions
+
+linters-settings:
+  errcheck:
+    check-type-assertions: false
+    check-blank: false
+
+  goimports:
+    local-prefixes: github.com/bc/tui-clock
+
+  revive:
+    severity: warning
+    rules:
+      - name: exported
+        disabled: true  # Don't require doc comments for all exports
+      - name: package-comments
+        disabled: true  # Don't require package comments
+
+issues:
+  exclude-rules:
+    # Exclude some linters from test files
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosimple
