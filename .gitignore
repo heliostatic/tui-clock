@@ -1,0 +1,20 @@
+# Binaries
+tui-clock
+
+# Test coverage
+coverage.out
+*.coverprofile
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Config (user's personal config should not be committed)
+config.yaml

@@ -1,0 +1,35 @@
+time_format: "24h"  # Options: "12h" or "24h"
+location_display_format: "auto"  # Options: "auto", "city", "timezone", "abbreviation"
+
+colleagues:
+  - name: "Alice (New York)"
+    timezone: "America/New_York"
+    work_start: 9   # 9am in 24h format
+    work_end: 17    # 5pm in 24h format
+
+  - name: "Bob (London)"
+    timezone: "Europe/London"
+    work_start: 9
+    work_end: 17
+
+  - name: "Charlie (Tokyo)"
+    timezone: "Asia/Tokyo"
+    work_start: 9
+    work_end: 17
+
+  - name: "Diana (Sydney)"
+    timezone: "Australia/Sydney"
+    work_start: 9
+    work_end: 17
+
+  - name: "Eve (Berlin)"
+    timezone: "Europe/Berlin"
+    work_start: 9
+    work_end: 17
+
+# Common timezone examples:
+# Americas: America/New_York, America/Los_Angeles, America/Chicago, America/Denver
+# Europe: Europe/London, Europe/Paris, Europe/Berlin, Europe/Moscow
+# Asia: Asia/Tokyo, Asia/Shanghai, Asia/Hong_Kong, Asia/Singapore, Asia/Kolkata
+# Pacific: Australia/Sydney, Pacific/Auckland
+# Africa: Africa/Cairo, Africa/Johannesburg

@@ -1,0 +1,138 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+A terminal-based world clock application for tracking time across multiple timezones. Built with Go using the Charm TUI libraries (Bubbletea, Lipgloss, Bubbles).
+
+## Commands
+
+### Build and Run
+```bash
+go build -o tui-clock
+./tui-clock
+```
+
+### Run directly
+```bash
+go run .
+```
+
+### Run with custom config
+```bash
+./tui-clock -config /path/to/config.yaml
+```
+
+### Install dependencies
+```bash
+go mod download
+```
+
+## Architecture
+
+### Core Components
+
+**Bubbletea Architecture (Elm-style)**
+- `types.go`: Core data structures (Model, Config, Colleague, ColleagueTime, InputMode)
+- `model.go`: Model initialization and business logic methods (Init, helper functions)
+- `update.go`: Update function handling all messages and keyboard input
+- `view.go`: View function rendering the UI with Lipgloss styling
+
+**Supporting Modules**
+- `config.go`: YAML configuration loading/saving with auto-creation of default config
+- `timezone.go`: Timezone calculations (current time, offset, working hours detection)
+- `timezones_data.go`: Comprehensive database of 200+ cities worldwide with timezone info
+- `timezone_search.go`: Fuzzy search and smart name formatting for timezone lookup
+- `styles.go`: Lipgloss style definitions (colors, formatting)
+- `main.go`: Entry point with CLI flag parsing
+
+### Data Flow
+
+1. **Initialization**: Load config from `~/.config/tui-clock/config.yaml` (or custom path via `-config` flag)
+2. **Auto-detection**: Local timezone detected automatically using `time.Now().Location()`
+3. **Tick Loop**: Every second, `TickMsg` triggers time recalculation for all colleagues
+4. **State Updates**: User input modifies model state, changes are persisted to config file
+5. **Rendering**: View function renders current state with scrolling support (max 8 visible)
+
+### Key Features
+
+**Display**
+- Real-time clocks updating every second
+- Time offset from local timezone (+5h, -8h)
+- Working hours indicator: ● (working), ○ (off-hours), ◆ (weekend)
+- Date and day of week display
+- Configurable 12h/24h time format
+- Scrolling for >8 colleagues
+
+**Interactions**
+- `↑/k, ↓/j`: Navigate
+- `a`: Add colleague (prompts for name, then interactive timezone search)
+- `e`: Edit selected colleague
+- `d`: Delete selected colleague
+- `f`: Toggle time format (12h ↔ 24h)
+- `?`: Help screen
+- `q/Esc`: Quit
+
+**Configuration**
+- Config file: `~/.config/tui-clock/config.yaml`
+- Auto-created with example colleagues on first run
+- Changes saved immediately on add/edit/delete/format toggle
+- `location_display_format`: "auto", "city", "timezone", or "abbreviation"
+- See `config.example.yaml` for structure
+
+### Timezone Search Feature
+
+**Comprehensive City Database**
+- 200+ cities worldwide including:
+  - All 50 US state capitals + 50+ major US cities
+  - Major cities across Canada, Mexico, Central/South America
+  - European cities (Western, Northern, Eastern regions)
+  - Middle East, Africa, Asia (East, Southeast, South), Oceania
+
+**Smart Search**
+- Search by city name: "new york", "london", "tokyo"
+- Search by abbreviation: "cst", "est", "pst" (shows all matching cities)
+- Search by country: "japan", "germany", "australia"
+- Search by state: "nebraska", "california"
+- Fuzzy matching with real-time filtering
+- Results ranked by popularity and relevance
+
+**Auto-Append Location**
+- Configurable via `location_display_format` in config:
+  - `"auto"` (default): Append city if user searched by city, abbreviation if searched by abbrev
+  - `"city"`: Always append city name
+  - `"timezone"`: Always append IANA timezone
+  - `"abbreviation"`: Always append abbreviation (EST, PST, etc.)
+- Example: Search "london" → adds "Alice (London)"
+- Example: Search "est" → adds "Alice (EST)"
+
+**Search UX**
+- Type to filter results (no need to press Enter while searching)
+- Shows current time for each result to verify correctness
+- `↑/↓` or `k/j` to navigate results
+- `Enter` to select
+- Scrolling for >10 results
+- Handles ambiguous abbreviations (CST = Chicago, Shanghai, or Havana)
+
+### Timezone Handling
+
+- Uses Go's `time.LoadLocation()` with IANA timezone database
+- Validation on add/edit prevents invalid timezone strings
+- Working hours: Configurable per-colleague (default 9am-5pm)
+- Weekend detection: Saturday/Sunday shown in purple
+- Offset calculation: Accounts for DST automatically
+
+### UI Layout
+
+```
+🌍 World Clock - Local Time: 15:30:45 (Mon, Jan 20)
+
+  ▲ 2 more above
+▶ ● Alice (New York)  10:30:45  -5h  Mon, Jan 20
+  ○ Bob (London)      15:30:45  same  Mon, Jan 20
+  ◆ Charlie (Tokyo)   00:30:45  +9h  Tue, Jan 21
+  ▼ 3 more below
+
+↑/k up • ↓/j down • a add • e edit • d delete • f format • ? help • q quit
+```
