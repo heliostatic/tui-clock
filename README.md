@@ -134,14 +134,15 @@ Ben (EST)            14:49:34  [    ████████████|██�
 
 ### Color Schemes
 
-Press `c` to cycle through six built-in color schemes:
+Press `c` to cycle through five built-in color schemes:
 
-1. **Classic** - Vibrant colors (cyan, green, purple) for maximum visibility
-2. **Dark** - Muted night-mode colors for low-light environments
-3. **High Contrast** - Accessibility-focused with strong differentiation
-4. **Nord** - Nordic-inspired bluish theme, popular in developer tools
-5. **Solarized** - Precision-crafted light variant, designed for reduced eye strain
-6. **Solarized Dark** - Warm dark tones for low-light solarized users
+1. **Classic** - Vibrant true colors (cyan, green, purple) for maximum visibility
+2. **Dark** - Muted night-mode true colors for low-light environments
+3. **High Contrast** - Accessibility-focused with strong differentiation using ANSI colors
+4. **Nord** - Nordic-inspired theme using official Nord colors with adaptive backgrounds
+5. **Solarized** - Precision-crafted adaptive scheme using official Solarized colors, automatically adjusts for light/dark terminal backgrounds
+
+**Adaptive Schemes:** Nord and Solarized use adaptive colors that automatically adjust background tones based on your terminal's light or dark theme, while keeping accent colors vibrant and consistent.
 
 Your color scheme preference is automatically saved to your config file.
 
@@ -163,7 +164,7 @@ The configuration file uses YAML format:
 
 ```yaml
 time_format: "24h"        # Options: "12h" or "24h"
-color_scheme: "classic"   # Options: "classic", "dark", "high-contrast"
+color_scheme: "classic"   # Options: "classic", "dark", "high-contrast", "nord", "solarized"
 timeline_mode: "individual"  # Options: "individual", "shared"
 
 colleagues:

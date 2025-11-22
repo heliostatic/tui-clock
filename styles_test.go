@@ -58,7 +58,8 @@ func TestGetCurrentColorScheme(t *testing.T) {
 
 // TestColorSchemeCycling tests that color schemes cycle in the correct order
 func TestColorSchemeCycling(t *testing.T) {
-	schemes := []string{"classic", "dark", "high-contrast"}
+	// Use dynamic scheme discovery instead of hardcoded list
+	schemes := GetAvailableColorSchemes()
 
 	// Test cycling through all schemes
 	for i := 0; i < len(schemes); i++ {
@@ -97,28 +98,28 @@ func TestColorSchemeColors(t *testing.T) {
 		t.Error("All schemes have identical colors - they should be distinct")
 	}
 
-	// Verify all schemes have non-empty marker colors
-	if classic.MarkerColor == "" {
-		t.Error("Classic MarkerColor is empty")
+	// Verify all schemes have non-nil marker colors
+	if classic.MarkerColor == nil {
+		t.Error("Classic MarkerColor is nil")
 	}
-	if dark.MarkerColor == "" {
-		t.Error("Dark MarkerColor is empty")
+	if dark.MarkerColor == nil {
+		t.Error("Dark MarkerColor is nil")
 	}
-	if highContrast.MarkerColor == "" {
-		t.Error("High-contrast MarkerColor is empty")
+	if highContrast.MarkerColor == nil {
+		t.Error("High-contrast MarkerColor is nil")
 	}
 }
 
-// TestColorSchemeCount verifies we have exactly 6 schemes
+// TestColorSchemeCount verifies we have exactly 5 schemes
 func TestColorSchemeCount(t *testing.T) {
-	expectedCount := 6
+	expectedCount := 5
 	actualCount := len(GetAvailableColorSchemes())
 	if actualCount != expectedCount {
 		t.Errorf("len(colorSchemes) = %d, want %d", actualCount, expectedCount)
 	}
 
 	// Verify the expected schemes exist
-	expectedSchemes := []string{"classic", "dark", "high-contrast", "nord", "solarized", "solarized-dark"}
+	expectedSchemes := []string{"classic", "dark", "high-contrast", "nord", "solarized"}
 	for _, schemeName := range expectedSchemes {
 		if _, exists := colorSchemes[schemeName]; !exists {
 			t.Errorf("expected scheme %q not found in colorSchemes map", schemeName)
@@ -185,13 +186,13 @@ func TestGetNameStyle(t *testing.T) {
 func TestGetAvailableColorSchemes(t *testing.T) {
 	schemes := GetAvailableColorSchemes()
 
-	// Should return all 6 schemes
-	if len(schemes) != 6 {
-		t.Errorf("GetAvailableColorSchemes() returned %d schemes, want 6", len(schemes))
+	// Should return all 5 schemes
+	if len(schemes) != 5 {
+		t.Errorf("GetAvailableColorSchemes() returned %d schemes, want 5", len(schemes))
 	}
 
 	// Should be sorted alphabetically
-	expected := []string{"classic", "dark", "high-contrast", "nord", "solarized", "solarized-dark"}
+	expected := []string{"classic", "dark", "high-contrast", "nord", "solarized"}
 	for i, name := range expected {
 		if schemes[i] != name {
 			t.Errorf("schemes[%d] = %q, want %q", i, schemes[i], name)
@@ -221,8 +222,7 @@ func TestGetNextColorScheme(t *testing.T) {
 		{"from dark", "dark", "high-contrast"},
 		{"from high-contrast", "high-contrast", "nord"},
 		{"from nord", "nord", "solarized"},
-		{"from solarized", "solarized", "solarized-dark"},
-		{"from solarized-dark (wrap)", "solarized-dark", "classic"},
+		{"from solarized (wrap)", "solarized", "classic"},
 		{"invalid scheme - fallback to first", "nonexistent", "classic"},
 		{"empty string - fallback to first", "", "classic"},
 	}

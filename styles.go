@@ -7,23 +7,24 @@ import (
 )
 
 // ColorScheme defines a complete set of colors for the application
+// Colors can be either lipgloss.Color (simple) or lipgloss.AdaptiveColor (light/dark aware)
 type ColorScheme struct {
 	Name string
 
-	// Timeline colors
-	SleepColor    lipgloss.Color
-	AwakeOffColor lipgloss.Color
-	WorkColor     lipgloss.Color
-	MarkerColor   lipgloss.Color
-	WeekendTint   lipgloss.Color
+	// Timeline colors - use TerminalColor to support both regular and adaptive colors
+	SleepColor    lipgloss.TerminalColor
+	AwakeOffColor lipgloss.TerminalColor
+	WorkColor     lipgloss.TerminalColor
+	MarkerColor   lipgloss.TerminalColor
+	WeekendTint   lipgloss.TerminalColor
 
 	// UI colors
-	Primary   lipgloss.Color
-	Secondary lipgloss.Color
-	Success   lipgloss.Color
-	Warning   lipgloss.Color
-	Error     lipgloss.Color
-	Muted     lipgloss.Color
+	Primary   lipgloss.TerminalColor
+	Secondary lipgloss.TerminalColor
+	Success   lipgloss.TerminalColor
+	Warning   lipgloss.TerminalColor
+	Error     lipgloss.TerminalColor
+	Muted     lipgloss.TerminalColor
 }
 
 var (
@@ -103,34 +104,36 @@ var (
 
 // Color scheme definitions
 var (
+	// Classic - Vibrant colors with true color support
 	classicScheme = ColorScheme{
 		Name:          "classic",
-		SleepColor:    lipgloss.Color("240"), // Dark gray
-		AwakeOffColor: lipgloss.Color("248"), // Medium gray
-		WorkColor:     lipgloss.Color("42"),  // Green
-		MarkerColor:   lipgloss.Color("86"),  // Cyan
-		WeekendTint:   lipgloss.Color("141"), // Purple
-		Primary:       lipgloss.Color("86"),  // Cyan
-		Secondary:     lipgloss.Color("212"), // Pink
-		Success:       lipgloss.Color("42"),  // Green
-		Warning:       lipgloss.Color("214"), // Orange
-		Error:         lipgloss.Color("196"), // Red
-		Muted:         lipgloss.Color("240"), // Gray
+		SleepColor:    lipgloss.Color("#585858"), // Dark gray
+		AwakeOffColor: lipgloss.Color("#a8a8a8"), // Medium gray
+		WorkColor:     lipgloss.Color("#00d787"), // Bright green
+		MarkerColor:   lipgloss.Color("#00d7ff"), // Bright cyan
+		WeekendTint:   lipgloss.Color("#af87d7"), // Purple
+		Primary:       lipgloss.Color("#00d7ff"), // Bright cyan
+		Secondary:     lipgloss.Color("#ff87d7"), // Pink
+		Success:       lipgloss.Color("#00d787"), // Bright green
+		Warning:       lipgloss.Color("#ffaf00"), // Orange
+		Error:         lipgloss.Color("#ff0000"), // Red
+		Muted:         lipgloss.Color("#585858"), // Gray
 	}
 
+	// Dark - Muted night-mode colors with true color
 	darkScheme = ColorScheme{
 		Name:          "dark",
-		SleepColor:    lipgloss.Color("234"), // Very dark
-		AwakeOffColor: lipgloss.Color("238"), // Dark gray
-		WorkColor:     lipgloss.Color("71"),  // Muted green
-		MarkerColor:   lipgloss.Color("67"),  // Muted cyan
-		WeekendTint:   lipgloss.Color("96"),  // Muted purple
-		Primary:       lipgloss.Color("67"),  // Muted cyan
-		Secondary:     lipgloss.Color("132"), // Muted pink
-		Success:       lipgloss.Color("71"),  // Muted green
-		Warning:       lipgloss.Color("136"), // Muted orange
-		Error:         lipgloss.Color("131"), // Muted red
-		Muted:         lipgloss.Color("237"), // Dark gray
+		SleepColor:    lipgloss.Color("#1c1c1c"), // Very dark
+		AwakeOffColor: lipgloss.Color("#444444"), // Dark gray
+		WorkColor:     lipgloss.Color("#5f875f"), // Muted green
+		MarkerColor:   lipgloss.Color("#5f87af"), // Muted cyan
+		WeekendTint:   lipgloss.Color("#875f87"), // Muted purple
+		Primary:       lipgloss.Color("#5f87af"), // Muted cyan
+		Secondary:     lipgloss.Color("#af5f87"), // Muted pink
+		Success:       lipgloss.Color("#5f875f"), // Muted green
+		Warning:       lipgloss.Color("#af875f"), // Muted orange
+		Error:         lipgloss.Color("#af5f5f"), // Muted red
+		Muted:         lipgloss.Color("#3a3a3a"), // Dark gray
 	}
 
 	highContrastScheme = ColorScheme{
@@ -148,58 +151,66 @@ var (
 		Muted:         lipgloss.Color("8"),  // Gray
 	}
 
+	// Nord - Nordic theme with adaptive light/dark support
+	// Uses true colors from https://www.nordtheme.com/docs/colors-and-palettes
 	nordScheme = ColorScheme{
-		Name:          "nord",
-		SleepColor:    lipgloss.Color("235"), // Polar Night darkest (#2E3440)
-		AwakeOffColor: lipgloss.Color("238"), // Polar Night lighter (#4C566A)
-		WorkColor:     lipgloss.Color("108"), // Aurora green (#A3BE8C)
-		MarkerColor:   lipgloss.Color("110"), // Frost bright cyan (#88C0D0)
-		WeekendTint:   lipgloss.Color("139"), // Aurora purple (#B48EAD)
-		Primary:       lipgloss.Color("110"), // Frost cyan (#88C0D0)
-		Secondary:     lipgloss.Color("109"), // Frost blue (#81A1C1)
-		Success:       lipgloss.Color("108"), // Aurora green (#A3BE8C)
-		Warning:       lipgloss.Color("222"), // Aurora yellow (#EBCB8B)
-		Error:         lipgloss.Color("167"), // Aurora red (#BF616A)
-		Muted:         lipgloss.Color("243"), // Snow Storm (#D8DEE9)
+		Name: "nord",
+		// Adaptive: darker sleep in dark mode, lighter in light mode
+		SleepColor: lipgloss.AdaptiveColor{
+			Light: "#e5e9f0", // Snow Storm nord5
+			Dark:  "#2e3440", // Polar Night nord0 (darkest)
+		},
+		AwakeOffColor: lipgloss.AdaptiveColor{
+			Light: "#d8dee9", // Snow Storm nord4
+			Dark:  "#4c566a", // Polar Night nord3
+		},
+		WorkColor:     lipgloss.Color("#a3be8c"), // Aurora green nord14
+		MarkerColor:   lipgloss.Color("#88c0d0"), // Frost cyan nord8
+		WeekendTint:   lipgloss.Color("#b48ead"), // Aurora purple nord15
+		Primary:       lipgloss.Color("#88c0d0"), // Frost cyan nord8
+		Secondary:     lipgloss.Color("#81a1c1"), // Frost blue nord9
+		Success:       lipgloss.Color("#a3be8c"), // Aurora green nord14
+		Warning:       lipgloss.Color("#ebcb8b"), // Aurora yellow nord13
+		Error:         lipgloss.Color("#bf616a"), // Aurora red nord11
+		Muted:         lipgloss.Color("#4c566a"), // Polar Night nord3
 	}
 
+	// Solarized - Precision colors for reduced eye strain
+	// Adaptive scheme using official Solarized colors
+	// https://github.com/altercation/solarized#the-values
 	solarizedScheme = ColorScheme{
-		Name:          "solarized",
-		SleepColor:    lipgloss.Color("254"), // Base2 (#EEE8D5)
-		AwakeOffColor: lipgloss.Color("245"), // Base1 (#93A1A1)
-		WorkColor:     lipgloss.Color("64"),  // Green (#859900)
-		MarkerColor:   lipgloss.Color("166"), // Orange (#CB4B16)
-		WeekendTint:   lipgloss.Color("125"), // Magenta (#D33682)
-		Primary:       lipgloss.Color("33"),  // Blue (#268BD2)
-		Secondary:     lipgloss.Color("37"),  // Cyan (#2AA198)
-		Success:       lipgloss.Color("64"),  // Green (#859900)
-		Warning:       lipgloss.Color("136"), // Yellow (#B58900)
-		Error:         lipgloss.Color("160"), // Red (#DC322F)
-		Muted:         lipgloss.Color("246"), // Base0 (#657B83)
-	}
-
-	solarizedDarkScheme = ColorScheme{
-		Name:          "solarized-dark",
-		SleepColor:    lipgloss.Color("234"), // Base03 (#002B36)
-		AwakeOffColor: lipgloss.Color("240"), // Base01 (#586E75)
-		WorkColor:     lipgloss.Color("64"),  // Green (#859900)
-		MarkerColor:   lipgloss.Color("166"), // Orange (#CB4B16)
-		WeekendTint:   lipgloss.Color("125"), // Magenta (#D33682)
-		Primary:       lipgloss.Color("33"),  // Blue (#268BD2)
-		Secondary:     lipgloss.Color("37"),  // Cyan (#2AA198)
-		Success:       lipgloss.Color("64"),  // Green (#859900)
-		Warning:       lipgloss.Color("136"), // Yellow (#B58900)
-		Error:         lipgloss.Color("160"), // Red (#DC322F)
-		Muted:         lipgloss.Color("241"), // Base00 (#657B83)
+		Name: "solarized",
+		// Base3/Base03 for sleep (lightest/darkest backgrounds)
+		SleepColor: lipgloss.AdaptiveColor{
+			Light: "#fdf6e3", // Base3 (light background)
+			Dark:  "#002b36", // Base03 (dark background)
+		},
+		// Base2/Base02 for off-hours
+		AwakeOffColor: lipgloss.AdaptiveColor{
+			Light: "#eee8d5", // Base2
+			Dark:  "#073642", // Base02
+		},
+		WorkColor:   lipgloss.Color("#859900"), // Green
+		MarkerColor: lipgloss.Color("#cb4b16"), // Orange
+		WeekendTint: lipgloss.Color("#d33682"), // Magenta
+		Primary:     lipgloss.Color("#268bd2"), // Blue
+		Secondary:   lipgloss.Color("#2aa198"), // Cyan
+		Success:     lipgloss.Color("#859900"), // Green
+		Warning:     lipgloss.Color("#b58900"), // Yellow
+		Error:       lipgloss.Color("#dc322f"), // Red
+		// Base0/Base00 for muted text
+		Muted: lipgloss.AdaptiveColor{
+			Light: "#657b83", // Base00
+			Dark:  "#839496", // Base0
+		},
 	}
 
 	colorSchemes = map[string]ColorScheme{
-		"classic":        classicScheme,
-		"dark":           darkScheme,
-		"high-contrast":  highContrastScheme,
-		"nord":           nordScheme,
-		"solarized":      solarizedScheme,
-		"solarized-dark": solarizedDarkScheme,
+		"classic":       classicScheme,
+		"dark":          darkScheme,
+		"high-contrast": highContrastScheme,
+		"nord":          nordScheme,
+		"solarized":     solarizedScheme,
 	}
 )
 
@@ -250,37 +261,37 @@ func ValidateColorScheme(scheme ColorScheme) []string {
 	if scheme.Name == "" {
 		missing = append(missing, "Name")
 	}
-	if scheme.SleepColor == "" {
+	if scheme.SleepColor == nil {
 		missing = append(missing, "SleepColor")
 	}
-	if scheme.AwakeOffColor == "" {
+	if scheme.AwakeOffColor == nil {
 		missing = append(missing, "AwakeOffColor")
 	}
-	if scheme.WorkColor == "" {
+	if scheme.WorkColor == nil {
 		missing = append(missing, "WorkColor")
 	}
-	if scheme.MarkerColor == "" {
+	if scheme.MarkerColor == nil {
 		missing = append(missing, "MarkerColor")
 	}
-	if scheme.WeekendTint == "" {
+	if scheme.WeekendTint == nil {
 		missing = append(missing, "WeekendTint")
 	}
-	if scheme.Primary == "" {
+	if scheme.Primary == nil {
 		missing = append(missing, "Primary")
 	}
-	if scheme.Secondary == "" {
+	if scheme.Secondary == nil {
 		missing = append(missing, "Secondary")
 	}
-	if scheme.Success == "" {
+	if scheme.Success == nil {
 		missing = append(missing, "Success")
 	}
-	if scheme.Warning == "" {
+	if scheme.Warning == nil {
 		missing = append(missing, "Warning")
 	}
-	if scheme.Error == "" {
+	if scheme.Error == nil {
 		missing = append(missing, "Error")
 	}
-	if scheme.Muted == "" {
+	if scheme.Muted == nil {
 		missing = append(missing, "Muted")
 	}
 

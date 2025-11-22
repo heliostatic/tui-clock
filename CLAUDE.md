@@ -66,7 +66,7 @@ go mod download
 - Configurable 12h/24h time format
 - Scrolling for >8 colleagues
 - Timeline visualization mode with individual and shared views
-- Three color schemes (classic, dark, high-contrast)
+- Five color schemes with true color and adaptive light/dark support
 
 **Interactions**
 - `↑/k, ↓/j`: Navigate
@@ -85,7 +85,7 @@ go mod download
 - Auto-created with example colleagues on first run
 - Changes saved immediately on add/edit/delete/format toggle/color scheme change/timeline mode toggle
 - `time_format`: "12h" or "24h"
-- `color_scheme`: "classic", "dark", or "high-contrast"
+- `color_scheme`: "classic", "dark", "high-contrast", "nord", or "solarized"
 - `timeline_mode`: "individual" or "shared"
 - `location_display_format`: "auto", "city", "timezone", or "abbreviation"
 - Colleague fields: `work_start`, `work_end`, `sleep_start`, `sleep_end` (all optional, defaults provided)
@@ -243,25 +243,35 @@ func (c Colleague) GetSleepEnd() int
 
 **Color Schemes:**
 
-Six built-in schemes defined in `colorSchemes` map:
-- **Classic**: Vibrant (cyan, green, purple) - default
-- **Dark**: Muted night-mode colors
-- **High Contrast**: Accessibility-focused
-- **Nord**: Nordic-inspired bluish theme
-- **Solarized**: Light variant with reduced eye strain
-- **Solarized Dark**: Warm dark tones for solarized users
+Five built-in schemes defined in `colorSchemes` map:
+- **Classic**: Vibrant true colors (#00d7ff cyan, #00d787 green, #af87d7 purple) - default
+- **Dark**: Muted night-mode true colors for low-light environments
+- **High Contrast**: Accessibility-focused using ANSI colors for maximum compatibility
+- **Nord**: Nordic-inspired theme using official Nord palette with adaptive backgrounds (https://nordtheme.com)
+- **Solarized**: Precision colors using official Solarized palette with adaptive light/dark support (https://github.com/altercation/solarized)
+
+**True Color Support**: Classic, Dark, Nord, and Solarized use 24-bit hex color values (e.g., `#00d7ff`) for accurate color reproduction.
+
+**Adaptive Color Support**: Nord and Solarized use `lipgloss.AdaptiveColor` for automatic light/dark terminal background detection:
+- Adaptive schemes adjust background tones based on terminal theme
+- Accent colors remain vibrant and consistent across terminal themes
+- Single scheme works beautifully in both light and dark terminals
 
 **Phase 1 System** (Implemented): Self-discovering color scheme system
 - Add new schemes by adding to `colorSchemes` map only (one place)
 - `GetAvailableColorSchemes()` - Auto-discovers all registered schemes
 - `GetNextColorScheme()` - Cycles alphabetically through all schemes
-- `ValidateColorScheme()` - Validates scheme completeness
+- `ValidateColorScheme()` - Validates scheme completeness (checks for nil values)
 
-Each ColorScheme defines:
-- `SleepColor`, `AwakeOffColor`, `WorkColor` - Bar character colors
+Each ColorScheme defines (using `lipgloss.TerminalColor` interface):
+- `SleepColor`, `AwakeOffColor`, `WorkColor` - Bar character colors (can be Color or AdaptiveColor)
 - `MarkerColor` - Current time highlight color
 - `WeekendTint` - Work block color on weekends
 - `Primary`, `Secondary`, `Success`, `Warning`, `Error`, `Muted` - UI colors
+
+The `TerminalColor` interface supports both:
+- `lipgloss.Color("#hex-value")` - Simple true color
+- `lipgloss.AdaptiveColor{Light: "#hex", Dark: "#hex"}` - Light/dark adaptive color
 
 **Bar Width Calculation:**
 

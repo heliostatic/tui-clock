@@ -222,6 +222,7 @@ Layout changes:
 Define the scheme and add to the `colorSchemes` map in `styles.go`:
 
 ```go
+// Basic scheme with true colors (hex values)
 var myScheme = ColorScheme{
     Name:          "my-scheme",
     SleepColor:    lipgloss.Color("#your-color"),
@@ -237,14 +238,31 @@ var myScheme = ColorScheme{
     Muted:         lipgloss.Color("#your-color"),
 }
 
+// Or use AdaptiveColor for automatic light/dark terminal background support
+var myAdaptiveScheme = ColorScheme{
+    Name: "my-adaptive-scheme",
+    // Adaptive colors automatically adjust based on terminal background
+    SleepColor: lipgloss.AdaptiveColor{
+        Light: "#light-bg-color",  // Used in light terminals
+        Dark:  "#dark-bg-color",   // Used in dark terminals
+    },
+    AwakeOffColor: lipgloss.AdaptiveColor{
+        Light: "#light-color",
+        Dark:  "#dark-color",
+    },
+    // Non-adaptive colors work the same in all terminals
+    WorkColor:   lipgloss.Color("#consistent-color"),
+    MarkerColor: lipgloss.Color("#consistent-color"),
+    // ... other fields
+}
+
 var colorSchemes = map[string]ColorScheme{
-    "classic":        classicScheme,
-    "dark":           darkScheme,
-    "high-contrast":  highContrastScheme,
-    "nord":           nordScheme,
-    "solarized":      solarizedScheme,
-    "solarized-dark": solarizedDarkScheme,
-    "my-scheme":      myScheme,  // Add here
+    "classic":       classicScheme,
+    "dark":          darkScheme,
+    "high-contrast": highContrastScheme,
+    "nord":          nordScheme,
+    "solarized":     solarizedScheme,
+    "my-scheme":     myScheme,  // Add here
 }
 ```
 
