@@ -1,6 +1,8 @@
 package main
 
 import (
+	"sort"
+
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -146,10 +148,58 @@ var (
 		Muted:         lipgloss.Color("8"),  // Gray
 	}
 
+	nordScheme = ColorScheme{
+		Name:          "nord",
+		SleepColor:    lipgloss.Color("235"), // Polar Night darkest (#2E3440)
+		AwakeOffColor: lipgloss.Color("238"), // Polar Night lighter (#4C566A)
+		WorkColor:     lipgloss.Color("108"), // Aurora green (#A3BE8C)
+		MarkerColor:   lipgloss.Color("110"), // Frost bright cyan (#88C0D0)
+		WeekendTint:   lipgloss.Color("139"), // Aurora purple (#B48EAD)
+		Primary:       lipgloss.Color("110"), // Frost cyan (#88C0D0)
+		Secondary:     lipgloss.Color("109"), // Frost blue (#81A1C1)
+		Success:       lipgloss.Color("108"), // Aurora green (#A3BE8C)
+		Warning:       lipgloss.Color("222"), // Aurora yellow (#EBCB8B)
+		Error:         lipgloss.Color("167"), // Aurora red (#BF616A)
+		Muted:         lipgloss.Color("243"), // Snow Storm (#D8DEE9)
+	}
+
+	solarizedScheme = ColorScheme{
+		Name:          "solarized",
+		SleepColor:    lipgloss.Color("254"), // Base2 (#EEE8D5)
+		AwakeOffColor: lipgloss.Color("245"), // Base1 (#93A1A1)
+		WorkColor:     lipgloss.Color("64"),  // Green (#859900)
+		MarkerColor:   lipgloss.Color("166"), // Orange (#CB4B16)
+		WeekendTint:   lipgloss.Color("125"), // Magenta (#D33682)
+		Primary:       lipgloss.Color("33"),  // Blue (#268BD2)
+		Secondary:     lipgloss.Color("37"),  // Cyan (#2AA198)
+		Success:       lipgloss.Color("64"),  // Green (#859900)
+		Warning:       lipgloss.Color("136"), // Yellow (#B58900)
+		Error:         lipgloss.Color("160"), // Red (#DC322F)
+		Muted:         lipgloss.Color("246"), // Base0 (#657B83)
+	}
+
+	solarizedDarkScheme = ColorScheme{
+		Name:          "solarized-dark",
+		SleepColor:    lipgloss.Color("234"), // Base03 (#002B36)
+		AwakeOffColor: lipgloss.Color("240"), // Base01 (#586E75)
+		WorkColor:     lipgloss.Color("64"),  // Green (#859900)
+		MarkerColor:   lipgloss.Color("166"), // Orange (#CB4B16)
+		WeekendTint:   lipgloss.Color("125"), // Magenta (#D33682)
+		Primary:       lipgloss.Color("33"),  // Blue (#268BD2)
+		Secondary:     lipgloss.Color("37"),  // Cyan (#2AA198)
+		Success:       lipgloss.Color("64"),  // Green (#859900)
+		Warning:       lipgloss.Color("136"), // Yellow (#B58900)
+		Error:         lipgloss.Color("160"), // Red (#DC322F)
+		Muted:         lipgloss.Color("241"), // Base00 (#657B83)
+	}
+
 	colorSchemes = map[string]ColorScheme{
-		"classic":       classicScheme,
-		"dark":          darkScheme,
-		"high-contrast": highContrastScheme,
+		"classic":        classicScheme,
+		"dark":           darkScheme,
+		"high-contrast":  highContrastScheme,
+		"nord":           nordScheme,
+		"solarized":      solarizedScheme,
+		"solarized-dark": solarizedDarkScheme,
 	}
 )
 
@@ -160,4 +210,79 @@ func getCurrentColorScheme(schemeName string) ColorScheme {
 		return classicScheme // fallback
 	}
 	return scheme
+}
+
+// GetAvailableColorSchemes returns all registered color scheme names, sorted alphabetically
+func GetAvailableColorSchemes() []string {
+	schemes := make([]string, 0, len(colorSchemes))
+	for name := range colorSchemes {
+		schemes = append(schemes, name)
+	}
+	// Sort alphabetically for predictable cycling order
+	sort.Strings(schemes)
+	return schemes
+}
+
+// GetNextColorScheme returns the next scheme in alphabetical order (wraps around)
+func GetNextColorScheme(current string) string {
+	schemes := GetAvailableColorSchemes()
+
+	// Find current scheme's index
+	for i, name := range schemes {
+		if name == current {
+			// Return next scheme (wrap around to first if at end)
+			return schemes[(i+1)%len(schemes)]
+		}
+	}
+
+	// Fallback if current scheme not found
+	if len(schemes) > 0 {
+		return schemes[0]
+	}
+	return "classic"
+}
+
+// ValidateColorScheme checks if a scheme has all required fields
+// Returns a list of missing field names (empty if valid)
+func ValidateColorScheme(scheme ColorScheme) []string {
+	var missing []string
+
+	if scheme.Name == "" {
+		missing = append(missing, "Name")
+	}
+	if scheme.SleepColor == "" {
+		missing = append(missing, "SleepColor")
+	}
+	if scheme.AwakeOffColor == "" {
+		missing = append(missing, "AwakeOffColor")
+	}
+	if scheme.WorkColor == "" {
+		missing = append(missing, "WorkColor")
+	}
+	if scheme.MarkerColor == "" {
+		missing = append(missing, "MarkerColor")
+	}
+	if scheme.WeekendTint == "" {
+		missing = append(missing, "WeekendTint")
+	}
+	if scheme.Primary == "" {
+		missing = append(missing, "Primary")
+	}
+	if scheme.Secondary == "" {
+		missing = append(missing, "Secondary")
+	}
+	if scheme.Success == "" {
+		missing = append(missing, "Success")
+	}
+	if scheme.Warning == "" {
+		missing = append(missing, "Warning")
+	}
+	if scheme.Error == "" {
+		missing = append(missing, "Error")
+	}
+	if scheme.Muted == "" {
+		missing = append(missing, "Muted")
+	}
+
+	return missing
 }

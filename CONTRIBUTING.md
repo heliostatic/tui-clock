@@ -219,7 +219,7 @@ Layout changes:
 
 **Adding a New Color Scheme:**
 
-Add to the `colorSchemes` map in `styles.go`:
+Define the scheme and add to the `colorSchemes` map in `styles.go`:
 
 ```go
 var myScheme = ColorScheme{
@@ -230,21 +230,30 @@ var myScheme = ColorScheme{
     MarkerColor:   lipgloss.Color("#your-color"),
     WeekendTint:   lipgloss.Color("#your-color"),
     Primary:       lipgloss.Color("#your-color"),
-    // ... other fields
+    Secondary:     lipgloss.Color("#your-color"),
+    Success:       lipgloss.Color("#your-color"),
+    Warning:       lipgloss.Color("#your-color"),
+    Error:         lipgloss.Color("#your-color"),
+    Muted:         lipgloss.Color("#your-color"),
 }
 
 var colorSchemes = map[string]ColorScheme{
-    "classic":       classicScheme,
-    "dark":          darkScheme,
-    "high-contrast": highContrastScheme,
-    "my-scheme":     myScheme,  // Add here
+    "classic":        classicScheme,
+    "dark":           darkScheme,
+    "high-contrast":  highContrastScheme,
+    "nord":           nordScheme,
+    "solarized":      solarizedScheme,
+    "solarized-dark": solarizedDarkScheme,
+    "my-scheme":      myScheme,  // Add here
 }
 ```
 
-Then update cycle logic in `update.go`:
-```go
-schemes := []string{"classic", "dark", "high-contrast", "my-scheme"}
-```
+That's it! The scheme will automatically:
+- Be included in color cycling (press `c`)
+- Be available via config: `color_scheme: "my-scheme"`
+- Be validated on startup
+
+For detailed guidelines on designing color schemes, see `plans/color-scheme-system.md`.
 
 **Testing Timeline Features:**
 

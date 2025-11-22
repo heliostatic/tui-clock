@@ -243,10 +243,19 @@ func (c Colleague) GetSleepEnd() int
 
 **Color Schemes:**
 
-Three built-in schemes defined in `colorSchemes` map:
+Six built-in schemes defined in `colorSchemes` map:
 - **Classic**: Vibrant (cyan, green, purple) - default
 - **Dark**: Muted night-mode colors
 - **High Contrast**: Accessibility-focused
+- **Nord**: Nordic-inspired bluish theme
+- **Solarized**: Light variant with reduced eye strain
+- **Solarized Dark**: Warm dark tones for solarized users
+
+**Phase 1 System** (Implemented): Self-discovering color scheme system
+- Add new schemes by adding to `colorSchemes` map only (one place)
+- `GetAvailableColorSchemes()` - Auto-discovers all registered schemes
+- `GetNextColorScheme()` - Cycles alphabetically through all schemes
+- `ValidateColorScheme()` - Validates scheme completeness
 
 Each ColorScheme defines:
 - `SleepColor`, `AwakeOffColor`, `WorkColor` - Bar character colors

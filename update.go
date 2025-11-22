@@ -280,17 +280,8 @@ func (m Model) handleTimelineMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case "c":
-		// Cycle through color schemes
-		schemes := []string{"classic", "dark", "high-contrast"}
-		currentIndex := -1
-		for i, s := range schemes {
-			if s == m.config.ColorScheme {
-				currentIndex = i
-				break
-			}
-		}
-		nextIndex := (currentIndex + 1) % len(schemes)
-		m.config.ColorScheme = schemes[nextIndex]
+		// Cycle through color schemes (auto-discover from registered schemes)
+		m.config.ColorScheme = GetNextColorScheme(m.config.ColorScheme)
 
 		if err := SaveConfig(m.configPath, m.config); err != nil {
 			m.errorMsg = err.Error()

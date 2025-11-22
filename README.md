@@ -134,11 +134,14 @@ Ben (EST)            14:49:34  [    ████████████|██�
 
 ### Color Schemes
 
-Press `c` to cycle through three built-in color schemes:
+Press `c` to cycle through six built-in color schemes:
 
 1. **Classic** - Vibrant colors (cyan, green, purple) for maximum visibility
 2. **Dark** - Muted night-mode colors for low-light environments
 3. **High Contrast** - Accessibility-focused with strong differentiation
+4. **Nord** - Nordic-inspired bluish theme, popular in developer tools
+5. **Solarized** - Precision-crafted light variant, designed for reduced eye strain
+6. **Solarized Dark** - Warm dark tones for low-light solarized users
 
 Your color scheme preference is automatically saved to your config file.
 

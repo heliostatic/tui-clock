@@ -9,7 +9,8 @@ import (
 
 // TestColorSchemeValidity tests that all color schemes have all required fields
 func TestColorSchemeValidity(t *testing.T) {
-	schemes := []string{"classic", "dark", "high-contrast"}
+	// Test all registered schemes dynamically
+	schemes := GetAvailableColorSchemes()
 
 	for _, schemeName := range schemes {
 		t.Run(schemeName, func(t *testing.T) {
@@ -20,25 +21,10 @@ func TestColorSchemeValidity(t *testing.T) {
 				t.Errorf("scheme name = %q, want %q", scheme.Name, schemeName)
 			}
 
-			// Check that all required colors are set (not empty)
-			colors := map[string]lipgloss.Color{
-				"SleepColor":    scheme.SleepColor,
-				"AwakeOffColor": scheme.AwakeOffColor,
-				"WorkColor":     scheme.WorkColor,
-				"MarkerColor":   scheme.MarkerColor,
-				"WeekendTint":   scheme.WeekendTint,
-				"Primary":       scheme.Primary,
-				"Secondary":     scheme.Secondary,
-				"Success":       scheme.Success,
-				"Warning":       scheme.Warning,
-				"Error":         scheme.Error,
-				"Muted":         scheme.Muted,
-			}
-
-			for colorName, colorValue := range colors {
-				if colorValue == "" {
-					t.Errorf("%s.%s is empty", schemeName, colorName)
-				}
+			// Use ValidateColorScheme function
+			missing := ValidateColorScheme(scheme)
+			if len(missing) > 0 {
+				t.Errorf("%s is missing fields: %v", schemeName, missing)
 			}
 		})
 	}
@@ -123,15 +109,16 @@ func TestColorSchemeColors(t *testing.T) {
 	}
 }
 
-// TestColorSchemeCount verifies we have exactly 3 schemes
+// TestColorSchemeCount verifies we have exactly 6 schemes
 func TestColorSchemeCount(t *testing.T) {
-	expectedCount := 3
-	if len(colorSchemes) != expectedCount {
-		t.Errorf("len(colorSchemes) = %d, want %d", len(colorSchemes), expectedCount)
+	expectedCount := 6
+	actualCount := len(GetAvailableColorSchemes())
+	if actualCount != expectedCount {
+		t.Errorf("len(colorSchemes) = %d, want %d", actualCount, expectedCount)
 	}
 
 	// Verify the expected schemes exist
-	expectedSchemes := []string{"classic", "dark", "high-contrast"}
+	expectedSchemes := []string{"classic", "dark", "high-contrast", "nord", "solarized", "solarized-dark"}
 	for _, schemeName := range expectedSchemes {
 		if _, exists := colorSchemes[schemeName]; !exists {
 			t.Errorf("expected scheme %q not found in colorSchemes map", schemeName)
@@ -192,4 +179,123 @@ func TestGetNameStyle(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestGetAvailableColorSchemes tests the scheme discovery function
+func TestGetAvailableColorSchemes(t *testing.T) {
+	schemes := GetAvailableColorSchemes()
+
+	// Should return all 6 schemes
+	if len(schemes) != 6 {
+		t.Errorf("GetAvailableColorSchemes() returned %d schemes, want 6", len(schemes))
+	}
+
+	// Should be sorted alphabetically
+	expected := []string{"classic", "dark", "high-contrast", "nord", "solarized", "solarized-dark"}
+	for i, name := range expected {
+		if schemes[i] != name {
+			t.Errorf("schemes[%d] = %q, want %q", i, schemes[i], name)
+		}
+	}
+
+	// Should contain all expected schemes
+	schemeMap := make(map[string]bool)
+	for _, scheme := range schemes {
+		schemeMap[scheme] = true
+	}
+	for _, expectedScheme := range expected {
+		if !schemeMap[expectedScheme] {
+			t.Errorf("missing expected scheme %q", expectedScheme)
+		}
+	}
+}
+
+// TestGetNextColorScheme tests the cycling function
+func TestGetNextColorScheme(t *testing.T) {
+	tests := []struct {
+		name     string
+		current  string
+		expected string
+	}{
+		{"from classic", "classic", "dark"},
+		{"from dark", "dark", "high-contrast"},
+		{"from high-contrast", "high-contrast", "nord"},
+		{"from nord", "nord", "solarized"},
+		{"from solarized", "solarized", "solarized-dark"},
+		{"from solarized-dark (wrap)", "solarized-dark", "classic"},
+		{"invalid scheme - fallback to first", "nonexistent", "classic"},
+		{"empty string - fallback to first", "", "classic"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GetNextColorScheme(tt.current)
+			if result != tt.expected {
+				t.Errorf("GetNextColorScheme(%q) = %q, want %q", tt.current, result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestValidateColorScheme tests the validation function
+func TestValidateColorScheme(t *testing.T) {
+	t.Run("valid scheme", func(t *testing.T) {
+		scheme := ColorScheme{
+			Name:          "test",
+			SleepColor:    lipgloss.Color("1"),
+			AwakeOffColor: lipgloss.Color("2"),
+			WorkColor:     lipgloss.Color("3"),
+			MarkerColor:   lipgloss.Color("4"),
+			WeekendTint:   lipgloss.Color("5"),
+			Primary:       lipgloss.Color("6"),
+			Secondary:     lipgloss.Color("7"),
+			Success:       lipgloss.Color("8"),
+			Warning:       lipgloss.Color("9"),
+			Error:         lipgloss.Color("10"),
+			Muted:         lipgloss.Color("11"),
+		}
+
+		missing := ValidateColorScheme(scheme)
+		if len(missing) != 0 {
+			t.Errorf("ValidateColorScheme() = %v, want empty slice", missing)
+		}
+	})
+
+	t.Run("missing fields", func(t *testing.T) {
+		scheme := ColorScheme{
+			Name:        "incomplete",
+			SleepColor:  lipgloss.Color("1"),
+			WorkColor:   lipgloss.Color("3"),
+			MarkerColor: lipgloss.Color("4"),
+		}
+
+		missing := ValidateColorScheme(scheme)
+		expectedMissing := []string{"AwakeOffColor", "WeekendTint", "Primary", "Secondary", "Success", "Warning", "Error", "Muted"}
+
+		if len(missing) != len(expectedMissing) {
+			t.Errorf("ValidateColorScheme() returned %d missing fields, want %d", len(missing), len(expectedMissing))
+		}
+
+		// Check all expected fields are reported as missing
+		missingMap := make(map[string]bool)
+		for _, field := range missing {
+			missingMap[field] = true
+		}
+		for _, expected := range expectedMissing {
+			if !missingMap[expected] {
+				t.Errorf("expected field %q to be reported as missing", expected)
+			}
+		}
+	})
+
+	t.Run("all built-in schemes are valid", func(t *testing.T) {
+		schemes := GetAvailableColorSchemes()
+		for _, schemeName := range schemes {
+			scheme := getCurrentColorScheme(schemeName)
+			missing := ValidateColorScheme(scheme)
+			if len(missing) > 0 {
+				t.Errorf("built-in scheme %q is invalid, missing: %v", schemeName, missing)
+			}
+		}
+	})
 }
