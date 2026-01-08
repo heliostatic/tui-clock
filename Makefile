@@ -1,4 +1,4 @@
-.PHONY: help build test test-verbose test-coverage lint fmt clean run install
+.PHONY: help build test test-verbose test-coverage lint fmt clean run install screenshots clean-screenshots
 
 # Default target
 help:
@@ -12,6 +12,7 @@ help:
 	@echo "  make clean          - Remove build artifacts"
 	@echo "  make run            - Build and run the application"
 	@echo "  make install        - Install binary to GOPATH/bin"
+	@echo "  make screenshots    - Generate README screenshots (requires VHS: brew install vhs)"
 
 # Build the binary
 build:
@@ -70,3 +71,19 @@ install:
 	@echo "Installing tui-clock to GOPATH/bin..."
 	go install
 	@echo "Done! Binary installed to: $$(go env GOPATH)/bin/tui-clock"
+
+# Generate README screenshots (requires VHS: brew install vhs)
+screenshots: build
+	@echo "Generating screenshots with VHS..."
+	@mkdir -p assets
+	@if command -v vhs >/dev/null 2>&1; then \
+		vhs demo/demo.tape; \
+	else \
+		echo "Error: VHS not installed"; \
+		echo "Install with: brew install vhs"; \
+		exit 1; \
+	fi
+
+# Clean generated screenshots
+clean-screenshots:
+	rm -rf assets/*.png

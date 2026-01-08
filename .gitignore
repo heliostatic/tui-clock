@@ -21,3 +21,6 @@ config.yaml
 
 # Planning documents (development notes, not part of codebase)
 plans/
+
+# VHS temp files
+.vhs/

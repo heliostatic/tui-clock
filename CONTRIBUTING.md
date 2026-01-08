@@ -77,6 +77,26 @@ make run            # Build and run the application
    make run
    ```
 
+### Updating Screenshots
+
+When making UI changes that affect the screenshots in the README:
+
+1. **Install VHS** (if needed):
+   ```bash
+   brew install vhs
+   ```
+
+2. **Regenerate screenshots:**
+   ```bash
+   make screenshots
+   ```
+
+3. **Verify screenshots** look correct in `assets/`
+
+4. **Commit the updated screenshots** along with your code changes
+
+The screenshot generation uses a VHS tape file (`demo/demo.tape`) with demo configuration (`demo/config.yaml`). See [VHS documentation](https://github.com/charmbracelet/vhs) for more details.
+
 ## Code Style
 
 - **Follow standard Go conventions** - Use `gofmt` for formatting
