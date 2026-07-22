@@ -27,15 +27,16 @@ func newNameInputWithValue(value string) textinput.Model {
 	return input
 }
 
-// newHourRangeInput creates an input for an hour range, pre-filled
-// with the current effective value (e.g. "9-17")
-func newHourRangeInput(value string) textinput.Model {
+// newHourRangeInput creates an input for an hour range. The current
+// effective value is shown as the placeholder rather than pre-filled
+// text: an untouched Enter then means "keep" instead of silently
+// pinning the effective value into the config.
+func newHourRangeInput(placeholder string) textinput.Model {
 	input := textinput.New()
-	input.Placeholder = "9-17"
+	input.Placeholder = placeholder
 	input.CharLimit = 11
 	input.Width = 12
 	input.Prompt = ""
-	input.SetValue(value)
 	return input
 }
 
@@ -72,8 +73,13 @@ func parseHourRange(input string) (hourRangeAction, int, int, error) {
 	if err != nil {
 		return hourRangeKeep, 0, 0, fmt.Errorf("invalid end hour %q", parts[1])
 	}
+	// Allow 24 as the end hour for "until midnight" and normalize it to
+	// 0, which the wraparound range logic renders as running to 24:00
+	if end == 24 {
+		end = 0
+	}
 	if start < 0 || start > 23 || end < 0 || end > 23 {
-		return hourRangeKeep, 0, 0, fmt.Errorf("hours must be 0-23, got %d-%d", start, end)
+		return hourRangeKeep, 0, 0, fmt.Errorf("hours must be 0-23 (end may be 24 for midnight), got %d-%d", start, end)
 	}
 	return hourRangeSet, start, end, nil
 }

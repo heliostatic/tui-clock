@@ -147,7 +147,7 @@ go mod download
   ◆ Charlie (Tokyo)   00:30:45  +9h  Tue, Jan 21
   ▼ 3 more below
 
-↑/k up • ↓/j down • a add • e edit • d delete • f format • ? help • q quit
+↑/k up • ↓/j down • a add • e edit • w hours • d delete • f format • t timeline • ? help • q quit
 ```
 
 **Timeline Mode:**

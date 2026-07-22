@@ -161,6 +161,7 @@ func (m Model) handleNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			ct := m.colleagues[m.cursor]
 			m.inputMode = ModeEditWorkHours
 			m.editIndex = ct.ConfigIndex
+			m.pendingWorkAction = hourRangeKeep
 			m.nameInput = newHourRangeInput(fmt.Sprintf("%d-%d",
 				ct.Colleague.GetWorkStart(), ct.Colleague.GetWorkEnd()))
 			m.nameInput.Focus()
@@ -282,7 +283,9 @@ func (m Model) handleEditSearchTimezoneMode(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 	}
 }
 
-// handleEditWorkHoursMode handles the work-hours step of hour editing
+// handleEditWorkHoursMode handles the work-hours step of hour editing.
+// The parsed result is only staged; nothing touches the config until
+// the sleep step is confirmed, so Esc at any point truly cancels.
 func (m Model) handleEditWorkHoursMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "enter":
@@ -291,16 +294,9 @@ func (m Model) handleEditWorkHoursMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.errorMsg = err.Error()
 			return m, nil
 		}
-		switch action {
-		case hourRangeReset:
-			err = m.applyWorkHours(m.editIndex, nil, nil)
-		case hourRangeSet:
-			err = m.applyWorkHours(m.editIndex, HourPtr(start), HourPtr(end))
-		}
-		if err != nil {
-			m.errorMsg = err.Error()
-			return m, nil
-		}
+		m.pendingWorkAction = action
+		m.pendingWorkStart = start
+		m.pendingWorkEnd = end
 
 		// Continue to the sleep-hours step
 		if m.editIndex >= 0 && m.editIndex < len(m.config.Colleagues) {
@@ -324,7 +320,9 @@ func (m Model) handleEditWorkHoursMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-// handleEditSleepHoursMode handles the sleep-hours step of hour editing
+// handleEditSleepHoursMode handles the sleep-hours step of hour
+// editing; confirming it applies the staged work hours and the sleep
+// hours together
 func (m Model) handleEditSleepHoursMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "enter":
@@ -333,6 +331,18 @@ func (m Model) handleEditSleepHoursMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.errorMsg = err.Error()
 			return m, nil
 		}
+
+		switch m.pendingWorkAction {
+		case hourRangeReset:
+			err = m.applyWorkHours(m.editIndex, nil, nil)
+		case hourRangeSet:
+			err = m.applyWorkHours(m.editIndex, HourPtr(m.pendingWorkStart), HourPtr(m.pendingWorkEnd))
+		}
+		if err != nil {
+			m.errorMsg = err.Error()
+			return m, nil
+		}
+
 		switch action {
 		case hourRangeReset:
 			err = m.applySleepHours(m.editIndex, nil, nil)
@@ -343,6 +353,7 @@ func (m Model) handleEditSleepHoursMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.errorMsg = err.Error()
 			return m, nil
 		}
+
 		m.exitToNormal()
 		m.activateSelection()
 		return m, nil

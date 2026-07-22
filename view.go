@@ -93,13 +93,13 @@ func (m Model) View() string {
 		b.WriteString(promptStyle.Render(fmt.Sprintf("Edit '%s' - Work hours (start-end): ", m.editTargetName())))
 		b.WriteString(m.nameInput.View())
 		b.WriteString("\n")
-		b.WriteString(footerStyle.Render("Enter apply • blank keep • \"default\" reset • Esc cancel"))
+		b.WriteString(footerStyle.Render("Enter next • blank keep • \"default\" reset • Esc cancel"))
 
 	case ModeEditSleepHours:
 		b.WriteString(promptStyle.Render(fmt.Sprintf("Edit '%s' - Sleep hours (start-end): ", m.editTargetName())))
 		b.WriteString(m.nameInput.View())
 		b.WriteString("\n")
-		b.WriteString(footerStyle.Render("Enter apply • blank keep • \"default\" reset • Esc cancel"))
+		b.WriteString(footerStyle.Render("Enter apply both • blank keep • \"default\" reset • Esc cancel all"))
 
 	default:
 		// Normal mode - show colleagues
@@ -205,11 +205,15 @@ func (m Model) renderColleagueRow(index int, ct ColleagueTime) string {
 		dateStyle.Render(dateStr),
 	)
 
-	// Upcoming DST transition warning (within DSTLookahead)
+	// Upcoming DST transition warning (within DSTLookahead). The date is
+	// taken an hour after the transition: for midnight fall-backs (e.g.
+	// Chile, 00:00 -> 23:00) the moment itself lands on the previous
+	// calendar day, but people name the change after the day being
+	// entered.
 	if ct.HasDSTChange {
 		warn := fmt.Sprintf("⚡%s %s",
 			formatOffsetString(ct.DSTDeltaHours),
-			ct.DSTChangeAt.Format("Jan 2"))
+			ct.DSTChangeAt.Add(time.Hour).Format("Jan 2"))
 		line += "  " + offsetStyle.Render(warn)
 	}
 

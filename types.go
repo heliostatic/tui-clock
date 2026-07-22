@@ -126,8 +126,14 @@ type Model struct {
 	nameInput       textinput.Model
 	editIndex       int    // Index of colleague being edited
 	errorMsg        string // Error message to display
-	width           int    // Terminal width
-	height          int    // Terminal height
+
+	// Staged hour edits from the 'w' flow; nothing is applied or saved
+	// until the final (sleep) step is confirmed, so Esc truly cancels
+	pendingWorkAction hourRangeAction
+	pendingWorkStart  int
+	pendingWorkEnd    int
+	width             int // Terminal width
+	height            int // Terminal height
 
 	// Timezone search state
 	searchQuery        string         // Current search query (what user typed)

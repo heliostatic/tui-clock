@@ -77,6 +77,7 @@ func TestParseHourRange(t *testing.T) {
 		{"overnight range", "22-6", hourRangeSet, 22, 6, false},
 		{"midnight start", "0-8", hourRangeSet, 0, 8, false},
 		{"with spaces", " 10 - 18 ", hourRangeSet, 10, 18, false},
+		{"until midnight normalizes 24 to 0", "9-24", hourRangeSet, 9, 0, false},
 		{"blank keeps current", "", hourRangeKeep, 0, 0, false},
 		{"whitespace keeps current", "   ", hourRangeKeep, 0, 0, false},
 		{"default resets", "default", hourRangeReset, 0, 0, false},
@@ -143,6 +144,77 @@ func TestApplyHours(t *testing.T) {
 	if err := m.applyWorkHours(99, HourPtr(1), HourPtr(2)); err != nil {
 		t.Errorf("Out-of-range applyWorkHours returned error: %v", err)
 	}
+}
+
+func TestHourEditFlowStagesUntilConfirmed(t *testing.T) {
+	enter := tea.KeyMsg{Type: tea.KeyEnter}
+	esc := tea.KeyMsg{Type: tea.KeyEscape}
+
+	setup := func(t *testing.T) Model {
+		t.Helper()
+		m := NewModel(DefaultConfig(), t.TempDir()+"/config.yaml")
+		m.editIndex = 0
+		m.inputMode = ModeEditWorkHours
+		m.pendingWorkAction = hourRangeKeep
+		m.nameInput = newHourRangeInput("9-17")
+		return m
+	}
+
+	t.Run("esc after work step leaves config untouched", func(t *testing.T) {
+		m := setup(t)
+		m.nameInput.SetValue("6-14")
+		next, _ := m.handleEditWorkHoursMode(enter)
+		m = next.(Model)
+
+		if m.inputMode != ModeEditSleepHours {
+			t.Fatalf("Expected sleep step after work Enter, got mode %v", m.inputMode)
+		}
+		if m.config.Colleagues[0].WorkStart != nil {
+			t.Fatal("Work hours must not be applied before the flow is confirmed")
+		}
+
+		next, _ = m.handleEditSleepHoursMode(esc)
+		m = next.(Model)
+		if m.config.Colleagues[0].WorkStart != nil || m.config.Colleagues[0].SleepStart != nil {
+			t.Error("Esc must cancel the whole flow without applying staged work hours")
+		}
+	})
+
+	t.Run("confirming applies both steps", func(t *testing.T) {
+		m := setup(t)
+		m.nameInput.SetValue("6-14")
+		next, _ := m.handleEditWorkHoursMode(enter)
+		m = next.(Model)
+
+		m.nameInput.SetValue("22-5")
+		next, _ = m.handleEditSleepHoursMode(enter)
+		m = next.(Model)
+
+		c := m.config.Colleagues[0]
+		if c.GetWorkStart() != 6 || c.GetWorkEnd() != 14 {
+			t.Errorf("Work hours = %d-%d, want 6-14", c.GetWorkStart(), c.GetWorkEnd())
+		}
+		if c.GetSleepStart() != 22 || c.GetSleepEnd() != 5 {
+			t.Errorf("Sleep hours = %d-%d, want 22-5", c.GetSleepStart(), c.GetSleepEnd())
+		}
+		if m.inputMode != ModeNormal {
+			t.Errorf("Expected return to normal mode, got %v", m.inputMode)
+		}
+	})
+
+	t.Run("blank Enter on both steps is a true no-op", func(t *testing.T) {
+		m := setup(t)
+		// Input is empty by default: the effective value lives in the placeholder
+		next, _ := m.handleEditWorkHoursMode(enter)
+		m = next.(Model)
+		next, _ = m.handleEditSleepHoursMode(enter)
+		m = next.(Model)
+
+		c := m.config.Colleagues[0]
+		if c.WorkStart != nil || c.WorkEnd != nil || c.SleepStart != nil || c.SleepEnd != nil {
+			t.Error("Enter-Enter with untouched inputs must not pin defaults into the config")
+		}
+	})
 }
 
 func TestExitToNormal(t *testing.T) {
