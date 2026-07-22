@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-runewidth"
 )
 
 // Timeline rendering functions for the world clock application.
@@ -275,12 +276,10 @@ func isInTimeRange(hour, start, end int) bool {
 	return hour >= start || hour < end
 }
 
-// truncateOrPad truncates or pads a string to exact width
+// truncateOrPad truncates or pads a string to an exact display width,
+// measured in terminal cells (not bytes) so non-ASCII names stay aligned
 func truncateOrPad(s string, width int) string {
-	if len(s) > width {
-		return s[:width]
-	}
-	return s + strings.Repeat(" ", width-len(s))
+	return runewidth.FillRight(runewidth.Truncate(s, width, ""), width)
 }
 
 // calculateOffsetHours calculates the hour offset between two times

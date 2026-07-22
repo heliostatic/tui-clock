@@ -3,6 +3,8 @@ package main
 import (
 	"testing"
 	"time"
+
+	"github.com/mattn/go-runewidth"
 )
 
 // TestIsInTimeRange tests the time range checking function including wraparound cases
@@ -60,6 +62,11 @@ func TestTruncateOrPad(t *testing.T) {
 		{"empty string", "", 3, "   "},
 		{"single char", "a", 5, "a    "},
 		{"zero width", "test", 0, ""},
+		// Widths are display cells, not bytes: "José" is 5 bytes but 4 cells
+		{"accented - pad by cells", "José", 6, "José  "},
+		{"CJK - pad by cells", "田中", 6, "田中  "},
+		// Truncating a wide char that won't fit pads the leftover cell
+		{"CJK - truncate to odd width", "田中太郎", 5, "田中 "},
 	}
 
 	for _, tt := range tests {
@@ -69,9 +76,9 @@ func TestTruncateOrPad(t *testing.T) {
 				t.Errorf("truncateOrPad(%q, %d) = %q, want %q",
 					tt.input, tt.width, result, tt.expected)
 			}
-			if len(result) != tt.width {
-				t.Errorf("truncateOrPad(%q, %d) returned length %d, want %d",
-					tt.input, tt.width, len(result), tt.width)
+			if w := runewidth.StringWidth(result); w != tt.width {
+				t.Errorf("truncateOrPad(%q, %d) returned display width %d, want %d",
+					tt.input, tt.width, w, tt.width)
 			}
 		})
 	}
