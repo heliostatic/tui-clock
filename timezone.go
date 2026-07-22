@@ -21,19 +21,12 @@ func ComputeColleagueTimes(colleagues []Colleague, localTz *time.Location, timeF
 
 		colleagueTime := now.In(loc)
 
-		// Calculate offset
+		// Calculate offset in fractional hours so half-hour zones
+		// (e.g. India +5:30) display correctly
 		_, localOffset := localNow.Zone()
 		_, colleagueOffset := colleagueTime.Zone()
-		offsetHours := (colleagueOffset - localOffset) / 3600
-
-		var offsetStr string
-		if offsetHours == 0 {
-			offsetStr = "same"
-		} else if offsetHours > 0 {
-			offsetStr = fmt.Sprintf("+%dh", offsetHours)
-		} else {
-			offsetStr = fmt.Sprintf("%dh", offsetHours)
-		}
+		offsetHours := float64(colleagueOffset-localOffset) / 3600.0
+		offsetStr := formatOffsetString(offsetHours)
 
 		// Check if it's weekend
 		isWeekend := colleagueTime.Weekday() == time.Saturday || colleagueTime.Weekday() == time.Sunday

@@ -150,6 +150,25 @@ func TestComputeColleagueTimes(t *testing.T) {
 	}
 }
 
+func TestComputeColleagueTimesHalfHourOffset(t *testing.T) {
+	colleagues := []Colleague{
+		{Name: "Ravi (Kolkata)", Timezone: "Asia/Kolkata"},
+	}
+
+	result, err := ComputeColleagueTimes(colleagues, time.UTC, "24h")
+	if err != nil {
+		t.Fatalf("ComputeColleagueTimes returned unexpected error: %v", err)
+	}
+	if len(result) != 1 {
+		t.Fatalf("Expected 1 result, got %d", len(result))
+	}
+
+	// India is UTC+5:30 year-round; integer division used to show "+5h"
+	if result[0].Offset != "+5.5h" {
+		t.Errorf("Expected +5.5h offset for Kolkata from UTC, got %s", result[0].Offset)
+	}
+}
+
 func TestWorkingHoursDetection(t *testing.T) {
 	tests := []struct {
 		name       string
