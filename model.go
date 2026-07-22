@@ -74,37 +74,6 @@ func (m *Model) saveConfig() error {
 	return SaveConfig(m.configPath, m.config)
 }
 
-// addColleague adds a new colleague and saves config
-func (m *Model) addColleague(name, timezone string) error {
-	// Validate timezone
-	if err := ValidateTimezone(timezone); err != nil {
-		return err
-	}
-
-	colleague := newColleague(name, timezone)
-
-	m.config.Colleagues = append(m.config.Colleagues, colleague)
-	m.updateColleagueTimes()
-	return m.saveConfig()
-}
-
-// editColleague updates an existing colleague and saves config
-func (m *Model) editColleague(index int, name, timezone string) error {
-	if index < 0 || index >= len(m.config.Colleagues) {
-		return nil
-	}
-
-	// Validate timezone
-	if err := ValidateTimezone(timezone); err != nil {
-		return err
-	}
-
-	m.config.Colleagues[index].Name = name
-	m.config.Colleagues[index].Timezone = timezone
-	m.updateColleagueTimes()
-	return m.saveConfig()
-}
-
 // deleteColleague removes a colleague and saves config
 func (m *Model) deleteColleague(index int) error {
 	if index < 0 || index >= len(m.config.Colleagues) {

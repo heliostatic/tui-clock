@@ -1,41 +1,49 @@
+version: "2"
 run:
-  timeout: 5m
   tests: true
-
 linters:
   enable:
-    - errcheck      # Check for unchecked errors
-    - gosimple      # Simplify code
-    - govet         # Reports suspicious constructs
-    - ineffassign   # Detect ineffectual assignments
-    - staticcheck   # Advanced static analysis
-    - unused        # Find unused code
-    - gofmt         # Check code formatting
-    - goimports     # Check import formatting
-    - misspell      # Spell checker
-    - revive        # Fast, configurable linter
-    - unconvert     # Remove unnecessary type conversions
-
-linters-settings:
-  errcheck:
-    check-type-assertions: false
-    check-blank: false
-
-  goimports:
-    local-prefixes: github.com/heliostatic/tui-clock
-
-  revive:
-    severity: warning
+    - misspell
+    - revive
+    - unconvert
+  settings:
+    errcheck:
+      check-type-assertions: false
+      check-blank: false
+    revive:
+      severity: warning
+      rules:
+        - name: exported
+          disabled: true
+        - name: package-comments
+          disabled: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
     rules:
-      - name: exported
-        disabled: true  # Don't require doc comments for all exports
-      - name: package-comments
-        disabled: true  # Don't require package comments
-
-issues:
-  exclude-rules:
-    # Exclude some linters from test files
-    - path: _test\.go
-      linters:
-        - errcheck
-        - gosimple
+      - linters:
+          - errcheck
+          - staticcheck
+        path: _test\.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/heliostatic/tui-clock
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
