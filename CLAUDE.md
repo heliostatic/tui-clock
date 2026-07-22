@@ -315,7 +315,7 @@ Reserved space: NameFieldWidth (25) + TimeFieldWidth (12) + padding + brackets
 
 **Testing Considerations:**
 
-When adding tests (see Phase 5.3 in plans/remaining-work.md):
+When adding tests:
 - Test `isInTimeRange()` with wraparound cases (23:00-07:00)
 - Test bar width calculations at various terminal sizes
 - Test individual bar generation (character distribution, marker position)
