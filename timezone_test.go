@@ -155,6 +155,38 @@ func TestComputeColleagueTimesHalfHourOffset(t *testing.T) {
 	}
 }
 
+func TestOvernightWorkingHours(t *testing.T) {
+	// Ranges are built around the current hour so the assertions hold at
+	// any time of day while still exercising the wraparound branch
+	now := time.Now().UTC()
+	h := now.Hour()
+	isWeekend := now.Weekday() == time.Saturday || now.Weekday() == time.Sunday
+
+	// A one-hour range containing the current hour (wraps when h == 23)
+	inRange := ComputeColleagueTimes([]Colleague{{
+		Name:      "On Shift",
+		Timezone:  "UTC",
+		WorkStart: HourPtr(h),
+		WorkEnd:   HourPtr((h + 1) % 24),
+	}}, time.UTC)
+	if got := inRange[0].IsWorkingTime; got != !isWeekend {
+		t.Errorf("Colleague working %d-%d at hour %d: IsWorkingTime = %v, want %v",
+			h, (h+1)%24, h, got, !isWeekend)
+	}
+
+	// The complementary range excludes the current hour (wraps for h < 23)
+	outOfRange := ComputeColleagueTimes([]Colleague{{
+		Name:      "Off Shift",
+		Timezone:  "UTC",
+		WorkStart: HourPtr((h + 1) % 24),
+		WorkEnd:   HourPtr(h),
+	}}, time.UTC)
+	if outOfRange[0].IsWorkingTime {
+		t.Errorf("Colleague working %d-%d at hour %d: IsWorkingTime = true, want false",
+			(h+1)%24, h, h)
+	}
+}
+
 func TestWorkingHoursDetection(t *testing.T) {
 	tests := []struct {
 		name       string

@@ -33,9 +33,10 @@ func ComputeColleagueTimes(colleagues []Colleague, localTz *time.Location) []Col
 		// Check if it's weekend
 		isWeekend := colleagueTime.Weekday() == time.Saturday || colleagueTime.Weekday() == time.Sunday
 
-		// Check if it's working time (accessors supply defaults for unset hours)
+		// Check if it's working time (accessors supply defaults for unset
+		// hours; isInTimeRange handles overnight ranges like 16-0)
 		hour := colleagueTime.Hour()
-		isWorkingTime := !isWeekend && hour >= colleague.GetWorkStart() && hour < colleague.GetWorkEnd()
+		isWorkingTime := !isWeekend && isInTimeRange(hour, colleague.GetWorkStart(), colleague.GetWorkEnd())
 
 		result = append(result, ColleagueTime{
 			Colleague:     colleague,
