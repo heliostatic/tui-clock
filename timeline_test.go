@@ -211,10 +211,10 @@ func TestRenderIndividualBar(t *testing.T) {
 		Colleague: Colleague{
 			Name:       "Test",
 			Timezone:   "America/New_York",
-			WorkStart:  9,
-			WorkEnd:    17,
-			SleepStart: 23,
-			SleepEnd:   7,
+			WorkStart:  HourPtr(9),
+			WorkEnd:    HourPtr(17),
+			SleepStart: HourPtr(23),
+			SleepEnd:   HourPtr(7),
 		},
 		CurrentTime:   testTime,
 		IsWorkingTime: true,
@@ -253,10 +253,10 @@ func TestRenderIndividualBarCharacterCount(t *testing.T) {
 		Colleague: Colleague{
 			Name:       "Test",
 			Timezone:   "America/New_York",
-			WorkStart:  9,
-			WorkEnd:    17,
-			SleepStart: 23,
-			SleepEnd:   7,
+			WorkStart:  HourPtr(9),
+			WorkEnd:    HourPtr(17),
+			SleepStart: HourPtr(23),
+			SleepEnd:   HourPtr(7),
 		},
 		CurrentTime:   testTime,
 		IsWorkingTime: true,
@@ -305,10 +305,10 @@ func TestRenderSharedBarOffsetDirection(t *testing.T) {
 		Colleague: Colleague{
 			Name:       "Test",
 			Timezone:   "Remote",
-			WorkStart:  9,
-			WorkEnd:    17,
-			SleepStart: 23,
-			SleepEnd:   7,
+			WorkStart:  HourPtr(9),
+			WorkEnd:    HourPtr(17),
+			SleepStart: HourPtr(23),
+			SleepEnd:   HourPtr(7),
 		},
 		CurrentTime:   testTime,
 		IsWorkingTime: true,
@@ -333,14 +333,10 @@ func TestRenderSharedBarOffsetDirection(t *testing.T) {
 
 // TestColleagueGetters tests the accessor methods with defaults
 func TestColleagueGetters(t *testing.T) {
-	t.Run("default values when zero", func(t *testing.T) {
+	t.Run("default values when unset", func(t *testing.T) {
 		c := Colleague{
-			Name:       "Test",
-			Timezone:   "UTC",
-			WorkStart:  0,
-			WorkEnd:    0,
-			SleepStart: 0,
-			SleepEnd:   0,
+			Name:     "Test",
+			Timezone: "UTC",
 		}
 
 		if c.GetWorkStart() != DefaultWorkStart {
@@ -361,10 +357,10 @@ func TestColleagueGetters(t *testing.T) {
 		c := Colleague{
 			Name:       "Test",
 			Timezone:   "UTC",
-			WorkStart:  8,
-			WorkEnd:    16,
-			SleepStart: 22,
-			SleepEnd:   6,
+			WorkStart:  HourPtr(8),
+			WorkEnd:    HourPtr(16),
+			SleepStart: HourPtr(22),
+			SleepEnd:   HourPtr(6),
 		}
 
 		if c.GetWorkStart() != 8 {
@@ -378,6 +374,22 @@ func TestColleagueGetters(t *testing.T) {
 		}
 		if c.GetSleepEnd() != 6 {
 			t.Errorf("GetSleepEnd() = %d, want 6", c.GetSleepEnd())
+		}
+	})
+
+	t.Run("midnight (0) is a valid configured value", func(t *testing.T) {
+		c := Colleague{
+			Name:      "Night Owl",
+			Timezone:  "UTC",
+			WorkStart: HourPtr(0),
+			SleepEnd:  HourPtr(0),
+		}
+
+		if c.GetWorkStart() != 0 {
+			t.Errorf("GetWorkStart() = %d, want 0 (midnight)", c.GetWorkStart())
+		}
+		if c.GetSleepEnd() != 0 {
+			t.Errorf("GetSleepEnd() = %d, want 0 (midnight)", c.GetSleepEnd())
 		}
 	})
 }

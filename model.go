@@ -52,13 +52,12 @@ func tick() tea.Cmd {
 	})
 }
 
-// newColleague creates a new colleague with default work hours
+// newColleague creates a new colleague; unset hour fields use the
+// defaults via the Get* accessors
 func newColleague(name, timezone string) Colleague {
 	return Colleague{
-		Name:      name,
-		Timezone:  timezone,
-		WorkStart: DefaultWorkStart,
-		WorkEnd:   DefaultWorkEnd,
+		Name:     name,
+		Timezone: timezone,
 	}
 }
 

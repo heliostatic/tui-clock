@@ -86,28 +86,20 @@ func TestComputeColleagueTimes(t *testing.T) {
 
 	colleagues := []Colleague{
 		{
-			Name:      "Alice (New York)",
-			Timezone:  "America/New_York",
-			WorkStart: 9,
-			WorkEnd:   17,
+			Name:     "Alice (New York)",
+			Timezone: "America/New_York",
 		},
 		{
-			Name:      "Bob (London)",
-			Timezone:  "Europe/London",
-			WorkStart: 9,
-			WorkEnd:   17,
+			Name:     "Bob (London)",
+			Timezone: "Europe/London",
 		},
 		{
-			Name:      "Charlie (Invalid)",
-			Timezone:  "Invalid/Timezone",
-			WorkStart: 9,
-			WorkEnd:   17,
+			Name:     "Charlie (Invalid)",
+			Timezone: "Invalid/Timezone",
 		},
 		{
-			Name:      "Dana (Tokyo)",
-			Timezone:  "Asia/Tokyo",
-			WorkStart: 9,
-			WorkEnd:   17,
+			Name:     "Dana (Tokyo)",
+			Timezone: "Asia/Tokyo",
 		},
 	}
 
@@ -198,13 +190,13 @@ func TestWorkingHoursDetection(t *testing.T) {
 			colleague := Colleague{
 				Name:      "Test",
 				Timezone:  "UTC",
-				WorkStart: 9,
-				WorkEnd:   17,
+				WorkStart: HourPtr(9),
+				WorkEnd:   HourPtr(17),
 			}
 
 			// Manually check working hours (mimics the logic in ComputeColleagueTimes)
 			isWeekend := testDate.Weekday() == time.Saturday || testDate.Weekday() == time.Sunday
-			isWorkingTime := !isWeekend && testDate.Hour() >= colleague.WorkStart && testDate.Hour() < colleague.WorkEnd
+			isWorkingTime := !isWeekend && testDate.Hour() >= colleague.GetWorkStart() && testDate.Hour() < colleague.GetWorkEnd()
 
 			if isWeekend != tt.expectWeek {
 				t.Errorf("Weekend detection: got %v, want %v", isWeekend, tt.expectWeek)

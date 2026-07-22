@@ -6,46 +6,53 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 )
 
-// Colleague represents a person with their timezone information
+// Colleague represents a person with their timezone information.
+// Hour fields are pointers so that 0 (midnight) is a valid configured
+// value; nil means "use the default".
 type Colleague struct {
 	Name       string `yaml:"name"`
 	Timezone   string `yaml:"timezone"`
-	WorkStart  int    `yaml:"work_start"`  // Hour in 24h format (e.g., 9 for 9am)
-	WorkEnd    int    `yaml:"work_end"`    // Hour in 24h format (e.g., 17 for 5pm)
-	SleepStart int    `yaml:"sleep_start"` // Hour in 24h format (e.g., 23 for 11pm), 0 = use default
-	SleepEnd   int    `yaml:"sleep_end"`   // Hour in 24h format (e.g., 7 for 7am), 0 = use default
+	WorkStart  *int   `yaml:"work_start,omitempty"`  // Hour in 24h format (e.g., 9 for 9am)
+	WorkEnd    *int   `yaml:"work_end,omitempty"`    // Hour in 24h format (e.g., 17 for 5pm)
+	SleepStart *int   `yaml:"sleep_start,omitempty"` // Hour in 24h format (e.g., 23 for 11pm)
+	SleepEnd   *int   `yaml:"sleep_end,omitempty"`   // Hour in 24h format (e.g., 7 for 7am)
+}
+
+// HourPtr returns a pointer to an hour value, for setting Colleague hour fields
+func HourPtr(h int) *int {
+	return &h
 }
 
 // GetWorkStart returns the work start hour, using the default if not set
 func (c Colleague) GetWorkStart() int {
-	if c.WorkStart == 0 {
+	if c.WorkStart == nil {
 		return DefaultWorkStart
 	}
-	return c.WorkStart
+	return *c.WorkStart
 }
 
 // GetWorkEnd returns the work end hour, using the default if not set
 func (c Colleague) GetWorkEnd() int {
-	if c.WorkEnd == 0 {
+	if c.WorkEnd == nil {
 		return DefaultWorkEnd
 	}
-	return c.WorkEnd
+	return *c.WorkEnd
 }
 
 // GetSleepStart returns the sleep start hour, using the default if not set
 func (c Colleague) GetSleepStart() int {
-	if c.SleepStart == 0 {
+	if c.SleepStart == nil {
 		return DefaultSleepStart
 	}
-	return c.SleepStart
+	return *c.SleepStart
 }
 
 // GetSleepEnd returns the sleep end hour, using the default if not set
 func (c Colleague) GetSleepEnd() int {
-	if c.SleepEnd == 0 {
+	if c.SleepEnd == nil {
 		return DefaultSleepEnd
 	}
-	return c.SleepEnd
+	return *c.SleepEnd
 }
 
 // Config represents the application configuration

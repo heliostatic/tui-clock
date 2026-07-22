@@ -21,15 +21,11 @@ func TestDefaultConfig(t *testing.T) {
 		t.Error("Expected default config to have example colleagues")
 	}
 
-	// Verify default colleagues have working hours set
+	// Verify default colleagues resolve to sane working hours
 	for i, colleague := range config.Colleagues {
-		if colleague.WorkStart == 0 || colleague.WorkEnd == 0 {
-			t.Errorf("Colleague %d missing work hours: start=%d, end=%d",
-				i, colleague.WorkStart, colleague.WorkEnd)
-		}
-		if colleague.WorkStart >= colleague.WorkEnd {
+		if colleague.GetWorkStart() >= colleague.GetWorkEnd() {
 			t.Errorf("Colleague %d has invalid work hours: start=%d >= end=%d",
-				i, colleague.WorkStart, colleague.WorkEnd)
+				i, colleague.GetWorkStart(), colleague.GetWorkEnd())
 		}
 	}
 }
@@ -47,8 +43,8 @@ func TestSaveAndLoadConfig(t *testing.T) {
 			{
 				Name:      "Test User (Tokyo)",
 				Timezone:  "Asia/Tokyo",
-				WorkStart: 10,
-				WorkEnd:   18,
+				WorkStart: HourPtr(10),
+				WorkEnd:   HourPtr(18),
 			},
 		},
 	}
@@ -94,9 +90,9 @@ func TestSaveAndLoadConfig(t *testing.T) {
 		if colleague.Timezone != "Asia/Tokyo" {
 			t.Errorf("Colleague timezone mismatch: got '%s', want 'Asia/Tokyo'", colleague.Timezone)
 		}
-		if colleague.WorkStart != 10 || colleague.WorkEnd != 18 {
+		if colleague.GetWorkStart() != 10 || colleague.GetWorkEnd() != 18 {
 			t.Errorf("Colleague work hours mismatch: got %d-%d, want 10-18",
-				colleague.WorkStart, colleague.WorkEnd)
+				colleague.GetWorkStart(), colleague.GetWorkEnd())
 		}
 	}
 }
@@ -153,12 +149,41 @@ func TestLoadConfigDefaults(t *testing.T) {
 
 	if len(config.Colleagues) > 0 {
 		colleague := config.Colleagues[0]
-		if colleague.WorkStart != 9 {
-			t.Errorf("Expected default work start 9, got %d", colleague.WorkStart)
+		if colleague.GetWorkStart() != 9 {
+			t.Errorf("Expected default work start 9, got %d", colleague.GetWorkStart())
 		}
-		if colleague.WorkEnd != 17 {
-			t.Errorf("Expected default work end 17, got %d", colleague.WorkEnd)
+		if colleague.GetWorkEnd() != 17 {
+			t.Errorf("Expected default work end 17, got %d", colleague.GetWorkEnd())
 		}
+	}
+}
+
+func TestLoadConfigPreservesMidnight(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "midnight_config.yaml")
+
+	// A night-shift colleague working midnight to 8am
+	nightYAML := `colleagues:
+  - name: "Night Owl"
+    timezone: "UTC"
+    work_start: 0
+    work_end: 8
+`
+	if err := os.WriteFile(configPath, []byte(nightYAML), 0644); err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	config, err := LoadConfig(configPath)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+
+	colleague := config.Colleagues[0]
+	if colleague.GetWorkStart() != 0 {
+		t.Errorf("Expected work start 0 (midnight) to be preserved, got %d", colleague.GetWorkStart())
+	}
+	if colleague.GetWorkEnd() != 8 {
+		t.Errorf("Expected work end 8, got %d", colleague.GetWorkEnd())
 	}
 }
 

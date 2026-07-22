@@ -17,22 +17,16 @@ func DefaultConfig() Config {
 		TimelineMode:          "individual",
 		Colleagues: []Colleague{
 			{
-				Name:      "Alice (New York)",
-				Timezone:  "America/New_York",
-				WorkStart: 9,
-				WorkEnd:   17,
+				Name:     "Alice (New York)",
+				Timezone: "America/New_York",
 			},
 			{
-				Name:      "Bob (London)",
-				Timezone:  "Europe/London",
-				WorkStart: 9,
-				WorkEnd:   17,
+				Name:     "Bob (London)",
+				Timezone: "Europe/London",
 			},
 			{
-				Name:      "Charlie (Tokyo)",
-				Timezone:  "Asia/Tokyo",
-				WorkStart: 9,
-				WorkEnd:   17,
+				Name:     "Charlie (Tokyo)",
+				Timezone: "Asia/Tokyo",
 			},
 		},
 	}
@@ -67,15 +61,9 @@ func LoadConfig(path string) (Config, error) {
 		return Config{}, fmt.Errorf("failed to parse config file: %w", err)
 	}
 
-	// Set defaults for colleagues if not specified
-	for i := range config.Colleagues {
-		if config.Colleagues[i].WorkStart == 0 {
-			config.Colleagues[i].WorkStart = 9
-		}
-		if config.Colleagues[i].WorkEnd == 0 {
-			config.Colleagues[i].WorkEnd = 17
-		}
-	}
+	// Note: colleague work/sleep hours are NOT defaulted here. Unset (nil)
+	// fields fall back to defaults via the Get* accessors, so an explicit
+	// 0 (midnight) in the config is preserved rather than rewritten.
 
 	// Set default time format if not specified
 	if config.TimeFormat == "" {
