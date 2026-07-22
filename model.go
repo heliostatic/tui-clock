@@ -45,9 +45,12 @@ func (m Model) Init() tea.Cmd {
 	return tick()
 }
 
-// tick returns a command that sends a TickMsg every second
+// tick returns a command that sends a TickMsg at the next wall-clock
+// second boundary; ticking a fixed interval after processing would
+// slowly drift and skip displayed seconds
 func tick() tea.Cmd {
-	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
+	untilNextSecond := time.Until(time.Now().Truncate(time.Second).Add(time.Second))
+	return tea.Tick(untilNextSecond, func(t time.Time) tea.Msg {
 		return TickMsg(t)
 	})
 }
@@ -63,8 +66,7 @@ func newColleague(name, timezone string) Colleague {
 
 // updateColleagueTimes recomputes all colleague times
 func (m *Model) updateColleagueTimes() {
-	colleagues, _ := ComputeColleagueTimes(m.config.Colleagues, m.localTimezone, m.config.TimeFormat)
-	m.colleagues = colleagues
+	m.colleagues = ComputeColleagueTimes(m.config.Colleagues, m.localTimezone)
 }
 
 // saveConfig saves the current config to file

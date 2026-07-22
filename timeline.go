@@ -265,7 +265,9 @@ func (m Model) calculateTimelineBarWidth() int {
 	return available
 }
 
-// isInTimeRange checks if an hour falls within a time range (handles wraparound)
+// isInTimeRange checks if an hour falls within a time range (handles
+// wraparound like 23-7). The range is half-open [start, end), so
+// start == end is an empty range that never matches.
 func isInTimeRange(hour, start, end int) bool {
 	if start <= end {
 		// Normal range (e.g., 9-17)

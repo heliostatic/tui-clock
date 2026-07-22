@@ -59,7 +59,7 @@ func (c Colleague) GetSleepEnd() int {
 type Config struct {
 	TimeFormat            string      `yaml:"time_format"`             // "12h" or "24h"
 	LocationDisplayFormat string      `yaml:"location_display_format"` // "auto", "city", "timezone", "abbreviation"
-	ColorScheme           string      `yaml:"color_scheme"`            // "classic", "dark", "high-contrast"
+	ColorScheme           string      `yaml:"color_scheme"`            // "classic", "dark", "high-contrast", "nord", "solarized"
 	TimelineMode          string      `yaml:"timeline_mode"`           // "individual", "shared"
 	Colleagues            []Colleague `yaml:"colleagues"`
 }

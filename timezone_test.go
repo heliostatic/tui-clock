@@ -103,10 +103,7 @@ func TestComputeColleagueTimes(t *testing.T) {
 		},
 	}
 
-	result, err := ComputeColleagueTimes(colleagues, localTz, "24h")
-	if err != nil {
-		t.Fatalf("ComputeColleagueTimes returned unexpected error: %v", err)
-	}
+	result := ComputeColleagueTimes(colleagues, localTz)
 
 	// Should skip invalid timezone, so only 3 results
 	if len(result) != 3 {
@@ -147,10 +144,7 @@ func TestComputeColleagueTimesHalfHourOffset(t *testing.T) {
 		{Name: "Ravi (Kolkata)", Timezone: "Asia/Kolkata"},
 	}
 
-	result, err := ComputeColleagueTimes(colleagues, time.UTC, "24h")
-	if err != nil {
-		t.Fatalf("ComputeColleagueTimes returned unexpected error: %v", err)
-	}
+	result := ComputeColleagueTimes(colleagues, time.UTC)
 	if len(result) != 1 {
 		t.Fatalf("Expected 1 result, got %d", len(result))
 	}

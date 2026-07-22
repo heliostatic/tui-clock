@@ -5,8 +5,10 @@ import (
 	"time"
 )
 
-// ComputeColleagueTimes calculates current time and metadata for all colleagues
-func ComputeColleagueTimes(colleagues []Colleague, localTz *time.Location, timeFormat string) ([]ColleagueTime, error) {
+// ComputeColleagueTimes calculates current time and metadata for all
+// colleagues; entries with invalid timezones are skipped (their
+// ConfigIndex gap lets callers map results back to the config)
+func ComputeColleagueTimes(colleagues []Colleague, localTz *time.Location) []ColleagueTime {
 	now := time.Now()
 	localNow := now.In(localTz)
 
@@ -45,7 +47,7 @@ func ComputeColleagueTimes(colleagues []Colleague, localTz *time.Location, timeF
 		})
 	}
 
-	return result, nil
+	return result
 }
 
 // FormatTime formats a time according to the specified format
