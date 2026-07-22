@@ -116,9 +116,11 @@ func (m Model) handleNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// Delete selected colleague (only if something is selected and active)
+		// Delete selected colleague (only if something is selected and active).
+		// Use the config index, not the display cursor: the display list skips
+		// entries with invalid timezones, so the two can diverge.
 		if m.cursor >= 0 && m.cursor < len(m.colleagues) && m.selectionActive {
-			if err := m.deleteColleague(m.cursor); err != nil {
+			if err := m.deleteColleague(m.colleagues[m.cursor].ConfigIndex); err != nil {
 				m.errorMsg = err.Error()
 			} else {
 				// Return to no selection after delete
@@ -133,10 +135,11 @@ func (m Model) handleNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// Edit selected colleague (only if something is selected and active)
+		// Edit selected colleague (only if something is selected and active).
+		// editIndex is a config index; see the delete handler for why.
 		if m.cursor >= 0 && m.cursor < len(m.colleagues) && m.selectionActive {
 			m.inputMode = ModeEditName
-			m.editIndex = m.cursor
+			m.editIndex = m.colleagues[m.cursor].ConfigIndex
 			m.nameInput = newNameInputWithValue(m.colleagues[m.cursor].Colleague.Name)
 			m.nameInput.Focus()
 			m.errorMsg = ""

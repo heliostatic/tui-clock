@@ -103,6 +103,12 @@ func TestComputeColleagueTimes(t *testing.T) {
 			WorkStart: 9,
 			WorkEnd:   17,
 		},
+		{
+			Name:      "Dana (Tokyo)",
+			Timezone:  "Asia/Tokyo",
+			WorkStart: 9,
+			WorkEnd:   17,
+		},
 	}
 
 	result, err := ComputeColleagueTimes(colleagues, localTz, "24h")
@@ -110,9 +116,18 @@ func TestComputeColleagueTimes(t *testing.T) {
 		t.Fatalf("ComputeColleagueTimes returned unexpected error: %v", err)
 	}
 
-	// Should skip invalid timezone, so only 2 results
-	if len(result) != 2 {
-		t.Errorf("Expected 2 results (skipping invalid), got %d", len(result))
+	// Should skip invalid timezone, so only 3 results
+	if len(result) != 3 {
+		t.Fatalf("Expected 3 results (skipping invalid), got %d", len(result))
+	}
+
+	// Entries after a skipped invalid timezone must keep their config index
+	// so edit/delete operate on the right colleague
+	if result[1].ConfigIndex != 1 {
+		t.Errorf("Expected Bob's ConfigIndex 1, got %d", result[1].ConfigIndex)
+	}
+	if result[2].ConfigIndex != 3 {
+		t.Errorf("Expected Dana's ConfigIndex 3 (after skipped entry), got %d", result[2].ConfigIndex)
 	}
 
 	// Verify Alice's data

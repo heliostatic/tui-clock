@@ -111,13 +111,13 @@ func (m *Model) deleteColleague(index int) error {
 	}
 
 	m.config.Colleagues = append(m.config.Colleagues[:index], m.config.Colleagues[index+1:]...)
+	m.updateColleagueTimes()
 
-	// Adjust cursor if necessary
-	if m.cursor >= len(m.config.Colleagues) && m.cursor > 0 {
+	// Adjust cursor if necessary (cursor indexes the display list)
+	if m.cursor >= len(m.colleagues) && m.cursor > 0 {
 		m.cursor--
 	}
 
-	m.updateColleagueTimes()
 	return m.saveConfig()
 }
 

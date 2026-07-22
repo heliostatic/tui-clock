@@ -12,7 +12,7 @@ func ComputeColleagueTimes(colleagues []Colleague, localTz *time.Location, timeF
 
 	result := make([]ColleagueTime, 0, len(colleagues))
 
-	for _, colleague := range colleagues {
+	for i, colleague := range colleagues {
 		loc, err := time.LoadLocation(colleague.Timezone)
 		if err != nil {
 			// Skip invalid timezones but continue processing others
@@ -44,6 +44,7 @@ func ComputeColleagueTimes(colleagues []Colleague, localTz *time.Location, timeF
 
 		result = append(result, ColleagueTime{
 			Colleague:     colleague,
+			ConfigIndex:   i,
 			CurrentTime:   colleagueTime,
 			Offset:        offsetStr,
 			IsWorkingTime: isWorkingTime,
