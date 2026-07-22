@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -22,6 +25,57 @@ func newNameInputWithValue(value string) textinput.Model {
 	input := newNameInput()
 	input.SetValue(value)
 	return input
+}
+
+// newHourRangeInput creates an input for an hour range, pre-filled
+// with the current effective value (e.g. "9-17")
+func newHourRangeInput(value string) textinput.Model {
+	input := textinput.New()
+	input.Placeholder = "9-17"
+	input.CharLimit = 11
+	input.Width = 12
+	input.Prompt = ""
+	input.SetValue(value)
+	return input
+}
+
+// hourRangeAction describes the outcome of parsing an hour-range input
+type hourRangeAction int
+
+const (
+	hourRangeKeep  hourRangeAction = iota // Blank input: leave unchanged
+	hourRangeReset                        // Reset to defaults (nil fields)
+	hourRangeSet                          // Explicit start-end
+)
+
+// parseHourRange parses hour-range input: "9-17" (set, wraparound like
+// "22-6" allowed), "" (keep current), or "default" (reset to defaults).
+// Hours must be 0-23.
+func parseHourRange(input string) (hourRangeAction, int, int, error) {
+	s := strings.TrimSpace(input)
+	switch s {
+	case "":
+		return hourRangeKeep, 0, 0, nil
+	case "default":
+		return hourRangeReset, 0, 0, nil
+	}
+
+	parts := strings.Split(s, "-")
+	if len(parts) != 2 {
+		return hourRangeKeep, 0, 0, fmt.Errorf("expected start-end (e.g. 9-17), got %q", s)
+	}
+	start, err := strconv.Atoi(strings.TrimSpace(parts[0]))
+	if err != nil {
+		return hourRangeKeep, 0, 0, fmt.Errorf("invalid start hour %q", parts[0])
+	}
+	end, err := strconv.Atoi(strings.TrimSpace(parts[1]))
+	if err != nil {
+		return hourRangeKeep, 0, 0, fmt.Errorf("invalid end hour %q", parts[1])
+	}
+	if start < 0 || start > 23 || end < 0 || end > 23 {
+		return hourRangeKeep, 0, 0, fmt.Errorf("hours must be 0-23, got %d-%d", start, end)
+	}
+	return hourRangeSet, start, end, nil
 }
 
 // exitToNormal returns the model to normal mode and clears state

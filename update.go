@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -50,6 +51,10 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleEditNameMode(msg)
 	case ModeEditSearchTimezone:
 		return m.handleEditSearchTimezoneMode(msg)
+	case ModeEditWorkHours:
+		return m.handleEditWorkHoursMode(msg)
+	case ModeEditSleepHours:
+		return m.handleEditSleepHoursMode(msg)
 	case ModeHelp:
 		return m.handleHelpMode(msg)
 	case ModeTimeline:
@@ -141,6 +146,23 @@ func (m Model) handleNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.inputMode = ModeEditName
 			m.editIndex = m.colleagues[m.cursor].ConfigIndex
 			m.nameInput = newNameInputWithValue(m.colleagues[m.cursor].Colleague.Name)
+			m.nameInput.Focus()
+			m.errorMsg = ""
+		}
+
+	case "w":
+		// If selection is hidden (inactive), reactivate it first without editing
+		if m.reactivateSelection() {
+			return m, nil
+		}
+
+		// Edit selected colleague's work/sleep hours
+		if m.cursor >= 0 && m.cursor < len(m.colleagues) && m.selectionActive {
+			ct := m.colleagues[m.cursor]
+			m.inputMode = ModeEditWorkHours
+			m.editIndex = ct.ConfigIndex
+			m.nameInput = newHourRangeInput(fmt.Sprintf("%d-%d",
+				ct.Colleague.GetWorkStart(), ct.Colleague.GetWorkEnd()))
 			m.nameInput.Focus()
 			m.errorMsg = ""
 		}
@@ -258,6 +280,81 @@ func (m Model) handleEditSearchTimezoneMode(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 		m.handleSearchNavigation(msg)
 		return m, nil
 	}
+}
+
+// handleEditWorkHoursMode handles the work-hours step of hour editing
+func (m Model) handleEditWorkHoursMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "enter":
+		action, start, end, err := parseHourRange(m.nameInput.Value())
+		if err != nil {
+			m.errorMsg = err.Error()
+			return m, nil
+		}
+		switch action {
+		case hourRangeReset:
+			err = m.applyWorkHours(m.editIndex, nil, nil)
+		case hourRangeSet:
+			err = m.applyWorkHours(m.editIndex, HourPtr(start), HourPtr(end))
+		}
+		if err != nil {
+			m.errorMsg = err.Error()
+			return m, nil
+		}
+
+		// Continue to the sleep-hours step
+		if m.editIndex >= 0 && m.editIndex < len(m.config.Colleagues) {
+			c := m.config.Colleagues[m.editIndex]
+			m.inputMode = ModeEditSleepHours
+			m.nameInput = newHourRangeInput(fmt.Sprintf("%d-%d", c.GetSleepStart(), c.GetSleepEnd()))
+			m.nameInput.Focus()
+			m.errorMsg = ""
+		} else {
+			m.exitToNormal()
+		}
+		return m, nil
+
+	case "esc":
+		m.exitToNormal()
+		return m, nil
+	}
+
+	var cmd tea.Cmd
+	m.nameInput, cmd = m.nameInput.Update(msg)
+	return m, cmd
+}
+
+// handleEditSleepHoursMode handles the sleep-hours step of hour editing
+func (m Model) handleEditSleepHoursMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "enter":
+		action, start, end, err := parseHourRange(m.nameInput.Value())
+		if err != nil {
+			m.errorMsg = err.Error()
+			return m, nil
+		}
+		switch action {
+		case hourRangeReset:
+			err = m.applySleepHours(m.editIndex, nil, nil)
+		case hourRangeSet:
+			err = m.applySleepHours(m.editIndex, HourPtr(start), HourPtr(end))
+		}
+		if err != nil {
+			m.errorMsg = err.Error()
+			return m, nil
+		}
+		m.exitToNormal()
+		m.activateSelection()
+		return m, nil
+
+	case "esc":
+		m.exitToNormal()
+		return m, nil
+	}
+
+	var cmd tea.Cmd
+	m.nameInput, cmd = m.nameInput.Update(msg)
+	return m, cmd
 }
 
 // handleHelpMode handles input in help screen

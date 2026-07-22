@@ -89,6 +89,8 @@ const (
 	ModeSearchTimezone // New mode for searching/selecting timezone
 	ModeEditName
 	ModeEditSearchTimezone // Edit mode for timezone search
+	ModeEditWorkHours      // Editing selected colleague's work hours
+	ModeEditSleepHours     // Editing selected colleague's sleep hours
 	ModeHelp
 	ModeTimeline // Timeline visualization mode
 )

@@ -64,6 +64,87 @@ func TestNewNameInputWithValue(t *testing.T) {
 	}
 }
 
+func TestParseHourRange(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		wantAction hourRangeAction
+		wantStart  int
+		wantEnd    int
+		wantErr    bool
+	}{
+		{"standard range", "9-17", hourRangeSet, 9, 17, false},
+		{"overnight range", "22-6", hourRangeSet, 22, 6, false},
+		{"midnight start", "0-8", hourRangeSet, 0, 8, false},
+		{"with spaces", " 10 - 18 ", hourRangeSet, 10, 18, false},
+		{"blank keeps current", "", hourRangeKeep, 0, 0, false},
+		{"whitespace keeps current", "   ", hourRangeKeep, 0, 0, false},
+		{"default resets", "default", hourRangeReset, 0, 0, false},
+		{"missing end", "9", hourRangeKeep, 0, 0, true},
+		{"hour too large", "9-25", hourRangeKeep, 0, 0, true},
+		{"negative disguised as range", "9--5", hourRangeKeep, 0, 0, true},
+		{"not numbers", "a-b", hourRangeKeep, 0, 0, true},
+		{"too many parts", "9-17-3", hourRangeKeep, 0, 0, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			action, start, end, err := parseHourRange(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("parseHourRange(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+			}
+			if err != nil {
+				return
+			}
+			if action != tt.wantAction || start != tt.wantStart || end != tt.wantEnd {
+				t.Errorf("parseHourRange(%q) = (%v, %d, %d), want (%v, %d, %d)",
+					tt.input, action, start, end, tt.wantAction, tt.wantStart, tt.wantEnd)
+			}
+		})
+	}
+}
+
+func TestApplyHours(t *testing.T) {
+	tmp := t.TempDir() + "/config.yaml"
+	config := DefaultConfig()
+	m := NewModel(config, tmp)
+
+	if err := m.applyWorkHours(0, HourPtr(0), HourPtr(8)); err != nil {
+		t.Fatalf("applyWorkHours failed: %v", err)
+	}
+	if got := m.config.Colleagues[0].GetWorkStart(); got != 0 {
+		t.Errorf("Work start = %d, want 0 (midnight)", got)
+	}
+
+	if err := m.applySleepHours(0, HourPtr(10), HourPtr(18)); err != nil {
+		t.Fatalf("applySleepHours failed: %v", err)
+	}
+
+	// Round-trip through the saved config
+	loaded, err := LoadConfig(tmp)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+	c := loaded.Colleagues[0]
+	if c.GetWorkStart() != 0 || c.GetWorkEnd() != 8 || c.GetSleepStart() != 10 || c.GetSleepEnd() != 18 {
+		t.Errorf("Round-trip mismatch: work %d-%d sleep %d-%d, want 0-8 / 10-18",
+			c.GetWorkStart(), c.GetWorkEnd(), c.GetSleepStart(), c.GetSleepEnd())
+	}
+
+	// Reset back to defaults
+	if err := m.applyWorkHours(0, nil, nil); err != nil {
+		t.Fatalf("applyWorkHours reset failed: %v", err)
+	}
+	if got := m.config.Colleagues[0].GetWorkStart(); got != DefaultWorkStart {
+		t.Errorf("After reset work start = %d, want default %d", got, DefaultWorkStart)
+	}
+
+	// Out-of-range index is a no-op, not a panic
+	if err := m.applyWorkHours(99, HourPtr(1), HourPtr(2)); err != nil {
+		t.Errorf("Out-of-range applyWorkHours returned error: %v", err)
+	}
+}
+
 func TestExitToNormal(t *testing.T) {
 	m := Model{
 		inputMode: ModeAddName,

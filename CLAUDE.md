@@ -72,6 +72,7 @@ go mod download
 - `↑/k, ↓/j`: Navigate
 - `a`: Add colleague (prompts for name, then interactive timezone search)
 - `e`: Edit selected colleague
+- `w`: Edit selected colleague's work/sleep hours (two-step prompt; blank keeps, "default" resets)
 - `d`: Delete selected colleague
 - `f`: Toggle time format (12h ↔ 24h)
 - `t`: Toggle timeline visualization mode

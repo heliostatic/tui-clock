@@ -94,6 +94,28 @@ func (m *Model) saveConfig() error {
 	return SaveConfig(m.configPath, m.config)
 }
 
+// applyWorkHours sets a colleague's work hours (nil = use defaults) and saves
+func (m *Model) applyWorkHours(index int, start, end *int) error {
+	if index < 0 || index >= len(m.config.Colleagues) {
+		return nil
+	}
+	m.config.Colleagues[index].WorkStart = start
+	m.config.Colleagues[index].WorkEnd = end
+	m.updateColleagueTimes()
+	return m.saveConfig()
+}
+
+// applySleepHours sets a colleague's sleep hours (nil = use defaults) and saves
+func (m *Model) applySleepHours(index int, start, end *int) error {
+	if index < 0 || index >= len(m.config.Colleagues) {
+		return nil
+	}
+	m.config.Colleagues[index].SleepStart = start
+	m.config.Colleagues[index].SleepEnd = end
+	m.updateColleagueTimes()
+	return m.saveConfig()
+}
+
 // deleteColleague removes a colleague and saves config
 func (m *Model) deleteColleague(index int) error {
 	if index < 0 || index >= len(m.config.Colleagues) {
