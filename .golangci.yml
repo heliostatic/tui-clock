@@ -22,7 +22,7 @@ linters-settings:
     check-blank: false
 
   goimports:
-    local-prefixes: github.com/bc/tui-clock
+    local-prefixes: github.com/heliostatic/tui-clock
 
   revive:
     severity: warning
