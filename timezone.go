@@ -5,45 +5,47 @@ import (
 	"time"
 )
 
-// ComputeColleagueTimes calculates current time and metadata for all colleagues
-func ComputeColleagueTimes(colleagues []Colleague, localTz *time.Location, timeFormat string) ([]ColleagueTime, error) {
+// ComputeColleagueTimes calculates current time and metadata for all
+// colleagues; entries whose timezone fails to load are kept in the
+// list flagged InvalidTimezone so the user can see, fix, or delete
+// them in the UI
+func ComputeColleagueTimes(colleagues []Colleague, localTz *time.Location) []ColleagueTime {
 	now := time.Now()
 	localNow := now.In(localTz)
 
 	result := make([]ColleagueTime, 0, len(colleagues))
 
-	for _, colleague := range colleagues {
+	for i, colleague := range colleagues {
 		loc, err := time.LoadLocation(colleague.Timezone)
 		if err != nil {
-			// Skip invalid timezones but continue processing others
+			result = append(result, ColleagueTime{
+				Colleague:       colleague,
+				ConfigIndex:     i,
+				InvalidTimezone: true,
+			})
 			continue
 		}
 
 		colleagueTime := now.In(loc)
 
-		// Calculate offset
+		// Calculate offset in fractional hours so half-hour zones
+		// (e.g. India +5:30) display correctly
 		_, localOffset := localNow.Zone()
 		_, colleagueOffset := colleagueTime.Zone()
-		offsetHours := (colleagueOffset - localOffset) / 3600
-
-		var offsetStr string
-		if offsetHours == 0 {
-			offsetStr = "same"
-		} else if offsetHours > 0 {
-			offsetStr = fmt.Sprintf("+%dh", offsetHours)
-		} else {
-			offsetStr = fmt.Sprintf("%dh", offsetHours)
-		}
+		offsetHours := float64(colleagueOffset-localOffset) / 3600.0
+		offsetStr := formatOffsetString(offsetHours)
 
 		// Check if it's weekend
 		isWeekend := colleagueTime.Weekday() == time.Saturday || colleagueTime.Weekday() == time.Sunday
 
-		// Check if it's working time
+		// Check if it's working time (accessors supply defaults for unset
+		// hours; isInTimeRange handles overnight ranges like 16-0)
 		hour := colleagueTime.Hour()
-		isWorkingTime := !isWeekend && hour >= colleague.WorkStart && hour < colleague.WorkEnd
+		isWorkingTime := !isWeekend && isInTimeRange(hour, colleague.GetWorkStart(), colleague.GetWorkEnd())
 
 		result = append(result, ColleagueTime{
 			Colleague:     colleague,
+			ConfigIndex:   i,
 			CurrentTime:   colleagueTime,
 			Offset:        offsetStr,
 			IsWorkingTime: isWorkingTime,
@@ -51,7 +53,7 @@ func ComputeColleagueTimes(colleagues []Colleague, localTz *time.Location, timeF
 		})
 	}
 
-	return result, nil
+	return result
 }
 
 // FormatTime formats a time according to the specified format

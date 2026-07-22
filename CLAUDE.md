@@ -120,7 +120,7 @@ go mod download
 **Search UX**
 - Type to filter results (no need to press Enter while searching)
 - Shows current time for each result to verify correctness
-- `↑/↓` or `k/j` to navigate results
+- `↑/↓` to navigate results (`k`/`j` are typeable characters, not navigation, while searching)
 - `Enter` to select
 - Scrolling for >10 results
 - Handles ambiguous abbreviations (CST = Chicago, Shanghai, or Havana)
@@ -283,7 +283,6 @@ func (m Model) calculateTimelineBarWidth() int
 Constants:
 - `MinBarWidth = 24` - Minimum (1 char per hour)
 - `IdealBarWidth = 48` - Target (2 chars per hour)
-- `MaxBarWidth = 72` - Maximum (3 chars per hour)
 
 Reserved space: NameFieldWidth (25) + TimeFieldWidth (12) + padding + brackets
 

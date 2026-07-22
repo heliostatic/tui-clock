@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // newNameInput creates a fresh, properly configured name input
@@ -48,11 +49,13 @@ func (m *Model) enterEditSearchMode() {
 
 // handleSearchNavigation handles up/down/typing in search mode
 // Returns true if the key was handled, false otherwise
-func (m *Model) handleSearchNavigation(key string) bool {
+// Navigation is arrow-keys only: letters like k/j must remain typeable
+// since search is type-to-filter (e.g. "tokyo", "japan").
+func (m *Model) handleSearchNavigation(msg tea.KeyMsg) bool {
 	const maxVisible = 10
 
-	switch key {
-	case "up", "k":
+	switch msg.String() {
+	case "up":
 		if m.searchCursor > 0 {
 			m.searchCursor--
 			if m.searchCursor < m.searchScrollOffset {
@@ -61,7 +64,7 @@ func (m *Model) handleSearchNavigation(key string) bool {
 		}
 		return true
 
-	case "down", "j":
+	case "down":
 		if m.searchCursor < len(m.searchResults)-1 {
 			m.searchCursor++
 			if m.searchCursor >= m.searchScrollOffset+maxVisible {
@@ -78,9 +81,12 @@ func (m *Model) handleSearchNavigation(key string) bool {
 		return true
 
 	default:
-		// Handle printable ASCII character input
-		if len(key) == 1 && key[0] >= 32 && key[0] <= 126 {
-			m.searchQuery += key
+		// Text input arrives as KeyRunes — possibly several runes in one
+		// message when typed fast or pasted — or as KeySpace for a space.
+		// Checking the message type (rather than string length) keeps
+		// batched input from being silently dropped.
+		if (msg.Type == tea.KeyRunes || msg.Type == tea.KeySpace) && !msg.Alt {
+			m.searchQuery += string(msg.Runes)
 			m.updateSearchResults()
 			return true
 		}

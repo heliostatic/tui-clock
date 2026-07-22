@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"math"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-runewidth"
 )
 
 // Timeline rendering functions for the world clock application.
@@ -36,9 +37,12 @@ func (m Model) renderTimeline() string {
 
 	// Render visible colleagues
 	for i := start; i < end; i++ {
-		if m.config.TimelineMode == "individual" {
+		switch {
+		case m.colleagues[i].InvalidTimezone:
+			b.WriteString(m.renderInvalidTimelineRow(m.colleagues[i]))
+		case m.config.TimelineMode == "individual":
 			b.WriteString(m.renderTimelineRow(i, m.colleagues[i]))
-		} else {
+		default:
 			b.WriteString(m.renderSharedTimelineRow(i, m.colleagues[i]))
 		}
 		b.WriteString("\n")
@@ -88,6 +92,20 @@ func (m Model) renderTimelineRow(index int, ct ColleagueTime) string {
 		bar)
 }
 
+// barCharForHour classifies an hour of a colleague's day into a bar
+// character. Configured work hours take precedence over sleep hours:
+// a night-shift colleague working 0-8 should render as working even
+// though the default sleep range (23-7) overlaps those hours.
+func barCharForHour(ct ColleagueTime, hour int) rune {
+	if !ct.IsWeekend && isInTimeRange(hour, ct.Colleague.GetWorkStart(), ct.Colleague.GetWorkEnd()) {
+		return '█' // Work hours
+	}
+	if isInTimeRange(hour, ct.Colleague.GetSleepStart(), ct.Colleague.GetSleepEnd()) {
+		return '░' // Sleep
+	}
+	return '▓' // Awake off-hours
+}
+
 // renderIndividualBar generates a timeline bar for individual mode
 func (m Model) renderIndividualBar(ct ColleagueTime, barWidth int) string {
 	bar := make([]rune, barWidth)
@@ -98,26 +116,14 @@ func (m Model) renderIndividualBar(ct ColleagueTime, barWidth int) string {
 	currentPosition := (currentHour + currentMinute/60.0) / 24.0 // 0.0 to 1.0
 	markerIndex := int(currentPosition * float64(barWidth))
 
-	// Get colleague's hours (using accessor methods for defaults)
-	workStart := ct.Colleague.GetWorkStart()
-	workEnd := ct.Colleague.GetWorkEnd()
-	sleepStart := ct.Colleague.GetSleepStart()
-	sleepEnd := ct.Colleague.GetSleepEnd()
-
 	// Build bar character by character
 	for i := range barWidth {
 		// Calculate which hour(s) this position represents
 		hourFraction := float64(i) / float64(barWidth)
 		hour := int(hourFraction * 24.0)
 
-		// Determine character based on time range (marker position will be colored differently)
-		if isInTimeRange(hour, sleepStart, sleepEnd) {
-			bar[i] = '░' // Sleep
-		} else if !ct.IsWeekend && isInTimeRange(hour, workStart, workEnd) {
-			bar[i] = '█' // Work hours
-		} else {
-			bar[i] = '▓' // Awake off-hours
-		}
+		// Marker position will be colored differently, not replaced
+		bar[i] = barCharForHour(ct, hour)
 	}
 
 	// Apply colors
@@ -265,7 +271,9 @@ func (m Model) calculateTimelineBarWidth() int {
 	return available
 }
 
-// isInTimeRange checks if an hour falls within a time range (handles wraparound)
+// isInTimeRange checks if an hour falls within a time range (handles
+// wraparound like 23-7). The range is half-open [start, end), so
+// start == end is an empty range that never matches.
 func isInTimeRange(hour, start, end int) bool {
 	if start <= end {
 		// Normal range (e.g., 9-17)
@@ -275,12 +283,10 @@ func isInTimeRange(hour, start, end int) bool {
 	return hour >= start || hour < end
 }
 
-// truncateOrPad truncates or pads a string to exact width
+// truncateOrPad truncates or pads a string to an exact display width,
+// measured in terminal cells (not bytes) so non-ASCII names stay aligned
 func truncateOrPad(s string, width int) string {
-	if len(s) > width {
-		return s[:width]
-	}
-	return s + strings.Repeat(" ", width-len(s))
+	return runewidth.FillRight(runewidth.Truncate(s, width, ""), width)
 }
 
 // calculateOffsetHours calculates the hour offset between two times
@@ -293,84 +299,12 @@ func calculateOffsetHours(t time.Time, localTz *time.Location) float64 {
 	return float64(offsetSeconds) / 3600.0
 }
 
-// calculateShiftAmount returns the number of bar positions to shift
-// based on timezone offset. Positive offset shifts right (future),
-// negative shifts left (past).
-//
-// Example: offset +9h with barWidth 48 returns 18 positions
-func calculateShiftAmount(offsetHours float64, barWidth int) int {
-	shiftFraction := offsetHours / 24.0
-	shiftAmount := int(math.Round(shiftFraction * float64(barWidth)))
-	return shiftAmount
-}
-
-// renderSharedTimelineHeader renders the header row for shared timeline mode
-func (m Model) renderSharedTimelineHeader() string {
-	barWidth := m.calculateTimelineBarWidth()
-
-	// Build the label line character by character for proper alignment
-	labelChars := make([]rune, barWidth+2) // +2 for brackets
-
-	// Initialize with spaces
-	for i := range labelChars {
-		labelChars[i] = ' '
-	}
-
-	// Set brackets
-	labelChars[0] = '['
-	labelChars[barWidth+1] = ']'
-
-	// Calculate positions for each hour (0, 6, 12, 18, 24)
-	// Using HH:MM format for shared mode
-	hours := []int{0, 6, 12, 18, 24}
-	labels := []string{"00:00", "06:00", "12:00", "18:00", "00:00"}
-
-	for i, hour := range hours {
-		// Calculate exact position for this hour in the bar
-		centerPos := int(float64(hour) / 24.0 * float64(barWidth))
-		label := labels[i]
-		labelLen := len(label)
-
-		// Calculate start position to center the label
-		// +1 accounts for the opening bracket
-		startPos := max(
-			// Ensure we don't go out of bounds
-			centerPos-(labelLen/2)+1, 1)
-		if startPos+labelLen > barWidth+1 {
-			startPos = barWidth + 1 - labelLen
-		}
-
-		// Place each character of the label
-		for j, ch := range label {
-			pos := startPos + j
-			if pos > 0 && pos <= barWidth {
-				labelChars[pos] = ch
-			}
-		}
-	}
-
-	// Calculate current time marker position
-	localTime := time.Now().In(m.localTimezone)
-	currentHour := float64(localTime.Hour())
-	currentMinute := float64(localTime.Minute())
-	currentPosition := (currentHour + currentMinute/60.0) / 24.0
-	markerIndex := int(currentPosition * float64(barWidth))
-
-	// Build the display
-	scheme := getCurrentColorScheme(m.config.ColorScheme)
-
-	// Left padding to align with colleague rows
-	leftPadding := NameFieldWidth + 2
-	padding := strings.Repeat(" ", leftPadding)
-
-	labelLine := padding + string(labelChars)
-
-	// Build marker label (just "now", the bars themselves show the position)
-	markerPadding := strings.Repeat(" ", leftPadding+markerIndex+1)
-	nowLabel := lipgloss.NewStyle().Foreground(scheme.MarkerColor).Bold(true).Render("now")
-	markerLine := markerPadding + nowLabel + "\n"
-
-	return footerStyle.Render("Local Time:") + "      " + footerStyle.Render(labelLine) + "\n" + markerLine
+// renderInvalidTimelineRow renders a warning row for a colleague whose
+// timezone failed to load (no time or bar can be computed)
+func (m Model) renderInvalidTimelineRow(ct ColleagueTime) string {
+	nameStr := truncateOrPad(ct.Colleague.Name, NameFieldWidth)
+	msg := fmt.Sprintf("⚠ invalid timezone %q — edit or delete", ct.Colleague.Timezone)
+	return fmt.Sprintf("%s %s", invalidStyle.Render(nameStr), invalidStyle.Render(msg))
 }
 
 // renderSharedTimelineRow renders a single colleague's row in shared timeline mode
@@ -409,12 +343,6 @@ func (m Model) renderSharedBar(ct ColleagueTime, offsetHours float64, barWidth i
 	currentPosition := (currentHour + currentMinute/60.0) / 24.0
 	markerIndex := int(currentPosition * float64(barWidth))
 
-	// Get colleague's hours (using accessor methods for defaults)
-	workStart := ct.Colleague.GetWorkStart()
-	workEnd := ct.Colleague.GetWorkEnd()
-	sleepStart := ct.Colleague.GetSleepStart()
-	sleepEnd := ct.Colleague.GetSleepEnd()
-
 	// Build bar with shift applied
 	for i := range barWidth {
 		// Calculate which hour this position represents in local time
@@ -434,14 +362,7 @@ func (m Model) renderSharedBar(ct ColleagueTime, offsetHours float64, barWidth i
 
 		theirHour := int(theirHourFraction * 24.0)
 
-		// Determine character based on their local hour
-		if isInTimeRange(theirHour, sleepStart, sleepEnd) {
-			bar[i] = '░' // Sleep
-		} else if !ct.IsWeekend && isInTimeRange(theirHour, workStart, workEnd) {
-			bar[i] = '█' // Work
-		} else {
-			bar[i] = '▓' // Awake off
-		}
+		bar[i] = barCharForHour(ct, theirHour)
 	}
 
 	// Pass markerIndex to colorizer for proper styling (will highlight that position)
@@ -460,9 +381,8 @@ func formatOffsetString(offsetHours float64) string {
 		offsetHours = -offsetHours
 	}
 
-	// Format as hours (handle half hours too)
-	if offsetHours == float64(int(offsetHours)) {
-		return fmt.Sprintf("%s%dh", sign, int(offsetHours))
-	}
-	return fmt.Sprintf("%s%.1fh", sign, offsetHours)
+	// Shortest exact decimal: real-world offsets are quarter-hour
+	// multiples, so this yields "+5h", "+5.5h", "+5.75h" — never a
+	// rounded value like "+5.8h" for Nepal's +5:45
+	return sign + strconv.FormatFloat(offsetHours, 'f', -1, 64) + "h"
 }

@@ -45,63 +45,33 @@ func (m Model) Init() tea.Cmd {
 	return tick()
 }
 
-// tick returns a command that sends a TickMsg every second
+// tick returns a command that sends a TickMsg at the next wall-clock
+// second boundary; ticking a fixed interval after processing would
+// slowly drift and skip displayed seconds
 func tick() tea.Cmd {
-	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
+	untilNextSecond := time.Until(time.Now().Truncate(time.Second).Add(time.Second))
+	return tea.Tick(untilNextSecond, func(t time.Time) tea.Msg {
 		return TickMsg(t)
 	})
 }
 
-// newColleague creates a new colleague with default work hours
+// newColleague creates a new colleague; unset hour fields use the
+// defaults via the Get* accessors
 func newColleague(name, timezone string) Colleague {
 	return Colleague{
-		Name:      name,
-		Timezone:  timezone,
-		WorkStart: DefaultWorkStart,
-		WorkEnd:   DefaultWorkEnd,
+		Name:     name,
+		Timezone: timezone,
 	}
 }
 
 // updateColleagueTimes recomputes all colleague times
 func (m *Model) updateColleagueTimes() {
-	colleagues, _ := ComputeColleagueTimes(m.config.Colleagues, m.localTimezone, m.config.TimeFormat)
-	m.colleagues = colleagues
+	m.colleagues = ComputeColleagueTimes(m.config.Colleagues, m.localTimezone)
 }
 
 // saveConfig saves the current config to file
 func (m *Model) saveConfig() error {
 	return SaveConfig(m.configPath, m.config)
-}
-
-// addColleague adds a new colleague and saves config
-func (m *Model) addColleague(name, timezone string) error {
-	// Validate timezone
-	if err := ValidateTimezone(timezone); err != nil {
-		return err
-	}
-
-	colleague := newColleague(name, timezone)
-
-	m.config.Colleagues = append(m.config.Colleagues, colleague)
-	m.updateColleagueTimes()
-	return m.saveConfig()
-}
-
-// editColleague updates an existing colleague and saves config
-func (m *Model) editColleague(index int, name, timezone string) error {
-	if index < 0 || index >= len(m.config.Colleagues) {
-		return nil
-	}
-
-	// Validate timezone
-	if err := ValidateTimezone(timezone); err != nil {
-		return err
-	}
-
-	m.config.Colleagues[index].Name = name
-	m.config.Colleagues[index].Timezone = timezone
-	m.updateColleagueTimes()
-	return m.saveConfig()
 }
 
 // deleteColleague removes a colleague and saves config
@@ -111,13 +81,13 @@ func (m *Model) deleteColleague(index int) error {
 	}
 
 	m.config.Colleagues = append(m.config.Colleagues[:index], m.config.Colleagues[index+1:]...)
+	m.updateColleagueTimes()
 
-	// Adjust cursor if necessary
-	if m.cursor >= len(m.config.Colleagues) && m.cursor > 0 {
+	// Adjust cursor if necessary (cursor indexes the display list)
+	if m.cursor >= len(m.colleagues) && m.cursor > 0 {
 		m.cursor--
 	}
 
-	m.updateColleagueTimes()
 	return m.saveConfig()
 }
 

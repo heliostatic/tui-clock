@@ -2,7 +2,29 @@ package main
 
 import (
 	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
+
+// keyMsg builds a tea.KeyMsg for tests: named keys map to their key
+// types, anything else becomes a KeyRunes message (possibly multi-rune,
+// as bubbletea delivers for pasted or fast-typed input)
+func keyMsg(s string) tea.KeyMsg {
+	switch s {
+	case "up":
+		return tea.KeyMsg{Type: tea.KeyUp}
+	case "down":
+		return tea.KeyMsg{Type: tea.KeyDown}
+	case "backspace":
+		return tea.KeyMsg{Type: tea.KeyBackspace}
+	case "ctrl+c":
+		return tea.KeyMsg{Type: tea.KeyCtrlC}
+	case " ":
+		return tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}}
+	default:
+		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s)}
+	}
+}
 
 func TestNewNameInput(t *testing.T) {
 	input := newNameInput()
@@ -124,8 +146,8 @@ func TestHandleSearchNavigation(t *testing.T) {
 	}{
 		{"Down arrow moves cursor", "down", true, true, 1},
 		{"Up arrow moves cursor", "up", true, true, 0},
-		{"j moves down", "j", true, true, 1},
-		{"k moves up", "k", true, true, 0},
+		{"j types into query, cursor unchanged", "j", true, true, 0},
+		{"k types into query, cursor unchanged", "k", true, true, 0},
 		{"Backspace handled", "backspace", true, false, -1},
 		{"Printable char handled", "a", true, false, -1},
 		{"Non-printable ignored", "ctrl+c", false, false, -1},
@@ -137,7 +159,7 @@ func TestHandleSearchNavigation(t *testing.T) {
 			m.searchCursor = 0
 			m.searchQuery = ""
 
-			handled := m.handleSearchNavigation(tt.key)
+			handled := m.handleSearchNavigation(keyMsg(tt.key))
 
 			if handled != tt.expectHandled {
 				t.Errorf("handleSearchNavigation(%s) returned %v, expected %v",
@@ -162,14 +184,14 @@ func TestHandleSearchNavigationBounds(t *testing.T) {
 
 	// Test up at top boundary
 	m.searchCursor = 0
-	m.handleSearchNavigation("up")
+	m.handleSearchNavigation(keyMsg("up"))
 	if m.searchCursor != 0 {
 		t.Errorf("Cursor should stay at 0 when going up from top, got %d", m.searchCursor)
 	}
 
 	// Test down at bottom boundary
 	m.searchCursor = len(m.searchResults) - 1
-	m.handleSearchNavigation("down")
+	m.handleSearchNavigation(keyMsg("down"))
 	if m.searchCursor != len(m.searchResults)-1 {
 		t.Errorf("Cursor should stay at max when going down from bottom, got %d", m.searchCursor)
 	}
@@ -181,17 +203,44 @@ func TestHandleSearchNavigationTyping(t *testing.T) {
 	m.searchQuery = ""
 
 	// Type some characters
-	m.handleSearchNavigation("l")
-	m.handleSearchNavigation("o")
-	m.handleSearchNavigation("n")
+	m.handleSearchNavigation(keyMsg("l"))
+	m.handleSearchNavigation(keyMsg("o"))
+	m.handleSearchNavigation(keyMsg("n"))
 
 	if m.searchQuery != "lon" {
 		t.Errorf("Expected search query 'lon', got '%s'", m.searchQuery)
 	}
 
 	// Backspace should remove last character
-	m.handleSearchNavigation("backspace")
+	m.handleSearchNavigation(keyMsg("backspace"))
 	if m.searchQuery != "lo" {
 		t.Errorf("Expected search query 'lo' after backspace, got '%s'", m.searchQuery)
+	}
+
+	// Letters used elsewhere for vim-style navigation must still be typeable
+	m.searchQuery = ""
+	for _, key := range []string{"t", "o", "k", "y", "o"} {
+		m.handleSearchNavigation(keyMsg(key))
+	}
+	if m.searchQuery != "tokyo" {
+		t.Errorf("Expected search query 'tokyo', got '%s'", m.searchQuery)
+	}
+
+	// Pasted or fast-typed input arrives as one multi-rune KeyRunes
+	// message; it must not be dropped
+	m.searchQuery = ""
+	handled := m.handleSearchNavigation(keyMsg("tokyo"))
+	if !handled {
+		t.Error("Expected multi-rune input to be handled")
+	}
+	if m.searchQuery != "tokyo" {
+		t.Errorf("Expected search query 'tokyo' after paste, got '%s'", m.searchQuery)
+	}
+
+	// Space arrives as KeySpace, not KeyRunes, and must still be typeable
+	m.searchQuery = "new"
+	m.handleSearchNavigation(keyMsg(" "))
+	if m.searchQuery != "new " {
+		t.Errorf("Expected search query 'new ' after space, got '%s'", m.searchQuery)
 	}
 }

@@ -17,22 +17,16 @@ func DefaultConfig() Config {
 		TimelineMode:          "individual",
 		Colleagues: []Colleague{
 			{
-				Name:      "Alice (New York)",
-				Timezone:  "America/New_York",
-				WorkStart: 9,
-				WorkEnd:   17,
+				Name:     "Alice (New York)",
+				Timezone: "America/New_York",
 			},
 			{
-				Name:      "Bob (London)",
-				Timezone:  "Europe/London",
-				WorkStart: 9,
-				WorkEnd:   17,
+				Name:     "Bob (London)",
+				Timezone: "Europe/London",
 			},
 			{
-				Name:      "Charlie (Tokyo)",
-				Timezone:  "Asia/Tokyo",
-				WorkStart: 9,
-				WorkEnd:   17,
+				Name:     "Charlie (Tokyo)",
+				Timezone: "Asia/Tokyo",
 			},
 		},
 	}
@@ -67,13 +61,22 @@ func LoadConfig(path string) (Config, error) {
 		return Config{}, fmt.Errorf("failed to parse config file: %w", err)
 	}
 
-	// Set defaults for colleagues if not specified
+	// Colleague work/sleep hours are not defaulted here: unset (nil)
+	// fields fall back to defaults via the Get* accessors, so an explicit
+	// 0 (midnight) in the config is preserved rather than rewritten.
+	//
+	// One exception: configs written by older versions always contained
+	// explicit hours, with the pair (0, 0) as their "use defaults"
+	// sentinel. A 0-0 range is empty and cannot be meant literally, so
+	// map it back to unset. Genuine midnight bounds (e.g. sleep 22-0)
+	// contain a non-zero value and are untouched.
 	for i := range config.Colleagues {
-		if config.Colleagues[i].WorkStart == 0 {
-			config.Colleagues[i].WorkStart = 9
+		c := &config.Colleagues[i]
+		if c.SleepStart != nil && c.SleepEnd != nil && *c.SleepStart == 0 && *c.SleepEnd == 0 {
+			c.SleepStart, c.SleepEnd = nil, nil
 		}
-		if config.Colleagues[i].WorkEnd == 0 {
-			config.Colleagues[i].WorkEnd = 17
+		if c.WorkStart != nil && c.WorkEnd != nil && *c.WorkStart == 0 && *c.WorkEnd == 0 {
+			c.WorkStart, c.WorkEnd = nil, nil
 		}
 	}
 

@@ -10,7 +10,9 @@ import (
 
 // getNameStyle returns the appropriate style for a colleague's name based on their current status
 func getNameStyle(ct ColleagueTime) lipgloss.Style {
-	if ct.IsWeekend {
+	if ct.InvalidTimezone {
+		return invalidStyle
+	} else if ct.IsWeekend {
 		return weekendStyle
 	} else if ct.IsWorkingTime {
 		return workingStyle.Bold(true)
@@ -144,6 +146,17 @@ func (m Model) renderColleagueRow(index int, ct ColleagueTime) string {
 	if m.cursor >= 0 && index == m.cursor && m.selectionActive {
 		cursor = "▶ "
 		style = selectedRowStyle
+	}
+
+	// Broken entries stay visible so they can be fixed (e) or removed (d)
+	if ct.InvalidTimezone {
+		line := fmt.Sprintf("%s%s %s  %s",
+			cursor,
+			invalidStyle.Render("⚠"),
+			ct.Colleague.Name,
+			invalidStyle.Render(fmt.Sprintf("invalid timezone %q — edit or delete", ct.Colleague.Timezone)),
+		)
+		return style.Render(line)
 	}
 
 	// Status indicator (working/off-hours/weekend)
@@ -288,6 +301,7 @@ STATUS INDICATORS
   ● Green      Working hours (9am-5pm, weekdays)
   ○ Gray       Off hours
   ◆ Purple     Weekend
+  ⚠ Red        Invalid timezone (edit or delete to fix)
 
 GENERAL
   ?            Show this help

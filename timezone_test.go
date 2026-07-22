@@ -86,33 +86,45 @@ func TestComputeColleagueTimes(t *testing.T) {
 
 	colleagues := []Colleague{
 		{
-			Name:      "Alice (New York)",
-			Timezone:  "America/New_York",
-			WorkStart: 9,
-			WorkEnd:   17,
+			Name:     "Alice (New York)",
+			Timezone: "America/New_York",
 		},
 		{
-			Name:      "Bob (London)",
-			Timezone:  "Europe/London",
-			WorkStart: 9,
-			WorkEnd:   17,
+			Name:     "Bob (London)",
+			Timezone: "Europe/London",
 		},
 		{
-			Name:      "Charlie (Invalid)",
-			Timezone:  "Invalid/Timezone",
-			WorkStart: 9,
-			WorkEnd:   17,
+			Name:     "Charlie (Invalid)",
+			Timezone: "Invalid/Timezone",
+		},
+		{
+			Name:     "Dana (Tokyo)",
+			Timezone: "Asia/Tokyo",
 		},
 	}
 
-	result, err := ComputeColleagueTimes(colleagues, localTz, "24h")
-	if err != nil {
-		t.Fatalf("ComputeColleagueTimes returned unexpected error: %v", err)
+	result := ComputeColleagueTimes(colleagues, localTz)
+
+	// Invalid entries are kept and flagged so the UI can surface them
+	if len(result) != 4 {
+		t.Fatalf("Expected 4 results (invalid entry kept), got %d", len(result))
+	}
+	if !result[2].InvalidTimezone {
+		t.Error("Expected Charlie's entry to be flagged InvalidTimezone")
+	}
+	if result[2].ConfigIndex != 2 {
+		t.Errorf("Expected Charlie's ConfigIndex 2, got %d", result[2].ConfigIndex)
 	}
 
-	// Should skip invalid timezone, so only 2 results
-	if len(result) != 2 {
-		t.Errorf("Expected 2 results (skipping invalid), got %d", len(result))
+	// Valid entries around the invalid one must keep their config index
+	// so edit/delete operate on the right colleague
+	if result[1].ConfigIndex != 1 || result[1].InvalidTimezone {
+		t.Errorf("Expected Bob valid with ConfigIndex 1, got index %d invalid=%v",
+			result[1].ConfigIndex, result[1].InvalidTimezone)
+	}
+	if result[3].ConfigIndex != 3 || result[3].InvalidTimezone {
+		t.Errorf("Expected Dana valid with ConfigIndex 3, got index %d invalid=%v",
+			result[3].ConfigIndex, result[3].InvalidTimezone)
 	}
 
 	// Verify Alice's data
@@ -132,6 +144,54 @@ func TestComputeColleagueTimes(t *testing.T) {
 	// London is +5h from New York (EST to GMT)
 	if bob.Offset != "+5h" {
 		t.Errorf("Expected +5h offset, got %s", bob.Offset)
+	}
+}
+
+func TestComputeColleagueTimesHalfHourOffset(t *testing.T) {
+	colleagues := []Colleague{
+		{Name: "Ravi (Kolkata)", Timezone: "Asia/Kolkata"},
+	}
+
+	result := ComputeColleagueTimes(colleagues, time.UTC)
+	if len(result) != 1 {
+		t.Fatalf("Expected 1 result, got %d", len(result))
+	}
+
+	// India is UTC+5:30 year-round; integer division used to show "+5h"
+	if result[0].Offset != "+5.5h" {
+		t.Errorf("Expected +5.5h offset for Kolkata from UTC, got %s", result[0].Offset)
+	}
+}
+
+func TestOvernightWorkingHours(t *testing.T) {
+	// Ranges are built around the current hour so the assertions hold at
+	// any time of day while still exercising the wraparound branch
+	now := time.Now().UTC()
+	h := now.Hour()
+	isWeekend := now.Weekday() == time.Saturday || now.Weekday() == time.Sunday
+
+	// A one-hour range containing the current hour (wraps when h == 23)
+	inRange := ComputeColleagueTimes([]Colleague{{
+		Name:      "On Shift",
+		Timezone:  "UTC",
+		WorkStart: HourPtr(h),
+		WorkEnd:   HourPtr((h + 1) % 24),
+	}}, time.UTC)
+	if got := inRange[0].IsWorkingTime; got != !isWeekend {
+		t.Errorf("Colleague working %d-%d at hour %d: IsWorkingTime = %v, want %v",
+			h, (h+1)%24, h, got, !isWeekend)
+	}
+
+	// The complementary range excludes the current hour (wraps for h < 23)
+	outOfRange := ComputeColleagueTimes([]Colleague{{
+		Name:      "Off Shift",
+		Timezone:  "UTC",
+		WorkStart: HourPtr((h + 1) % 24),
+		WorkEnd:   HourPtr(h),
+	}}, time.UTC)
+	if outOfRange[0].IsWorkingTime {
+		t.Errorf("Colleague working %d-%d at hour %d: IsWorkingTime = true, want false",
+			(h+1)%24, h, h)
 	}
 }
 
@@ -164,13 +224,13 @@ func TestWorkingHoursDetection(t *testing.T) {
 			colleague := Colleague{
 				Name:      "Test",
 				Timezone:  "UTC",
-				WorkStart: 9,
-				WorkEnd:   17,
+				WorkStart: HourPtr(9),
+				WorkEnd:   HourPtr(17),
 			}
 
 			// Manually check working hours (mimics the logic in ComputeColleagueTimes)
 			isWeekend := testDate.Weekday() == time.Saturday || testDate.Weekday() == time.Sunday
-			isWorkingTime := !isWeekend && testDate.Hour() >= colleague.WorkStart && testDate.Hour() < colleague.WorkEnd
+			isWorkingTime := !isWeekend && testDate.Hour() >= colleague.GetWorkStart() && testDate.Hour() < colleague.GetWorkEnd()
 
 			if isWeekend != tt.expectWeek {
 				t.Errorf("Weekend detection: got %v, want %v", isWeekend, tt.expectWeek)

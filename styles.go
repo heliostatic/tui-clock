@@ -29,24 +29,18 @@ type ColorScheme struct {
 
 var (
 	// Color palette
-	primaryColor   = lipgloss.Color("86")  // Cyan
-	secondaryColor = lipgloss.Color("212") // Pink
-	successColor   = lipgloss.Color("42")  // Green
-	warningColor   = lipgloss.Color("214") // Orange
-	errorColor     = lipgloss.Color("196") // Red
-	mutedColor     = lipgloss.Color("240") // Gray
-	weekendColor   = lipgloss.Color("141") // Purple
+	primaryColor = lipgloss.Color("86")  // Cyan
+	successColor = lipgloss.Color("42")  // Green
+	warningColor = lipgloss.Color("214") // Orange
+	errorColor   = lipgloss.Color("196") // Red
+	mutedColor   = lipgloss.Color("240") // Gray
+	weekendColor = lipgloss.Color("141") // Purple
 
 	// Header style
 	headerStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(primaryColor).
 			MarginBottom(1)
-
-	// Title style
-	titleStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(secondaryColor)
 
 	// Normal colleague row
 	rowStyle = lipgloss.NewStyle().
@@ -90,6 +84,10 @@ var (
 			Foreground(errorColor).
 			Bold(true).
 			MarginTop(1)
+
+	// Invalid colleague entry style (no margin, used inline in rows)
+	invalidStyle = lipgloss.NewStyle().
+			Foreground(errorColor)
 
 	// Input prompt style
 	promptStyle = lipgloss.NewStyle().
@@ -164,15 +162,15 @@ var (
 			Light: "#d8dee9", // Snow Storm nord4
 			Dark:  "#4c566a", // Polar Night nord3
 		},
-		WorkColor:     lipgloss.Color("#a3be8c"), // Aurora green nord14
-		MarkerColor:   lipgloss.Color("#88c0d0"), // Frost cyan nord8
-		WeekendTint:   lipgloss.Color("#b48ead"), // Aurora purple nord15
-		Primary:       lipgloss.Color("#88c0d0"), // Frost cyan nord8
-		Secondary:     lipgloss.Color("#81a1c1"), // Frost blue nord9
-		Success:       lipgloss.Color("#a3be8c"), // Aurora green nord14
-		Warning:       lipgloss.Color("#ebcb8b"), // Aurora yellow nord13
-		Error:         lipgloss.Color("#bf616a"), // Aurora red nord11
-		Muted:         lipgloss.Color("#4c566a"), // Polar Night nord3
+		WorkColor:   lipgloss.Color("#a3be8c"), // Aurora green nord14
+		MarkerColor: lipgloss.Color("#88c0d0"), // Frost cyan nord8
+		WeekendTint: lipgloss.Color("#b48ead"), // Aurora purple nord15
+		Primary:     lipgloss.Color("#88c0d0"), // Frost cyan nord8
+		Secondary:   lipgloss.Color("#81a1c1"), // Frost blue nord9
+		Success:     lipgloss.Color("#a3be8c"), // Aurora green nord14
+		Warning:     lipgloss.Color("#ebcb8b"), // Aurora yellow nord13
+		Error:       lipgloss.Color("#bf616a"), // Aurora red nord11
+		Muted:       lipgloss.Color("#4c566a"), // Polar Night nord3
 	}
 
 	// Solarized - Precision colors for reduced eye strain

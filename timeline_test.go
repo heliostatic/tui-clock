@@ -3,6 +3,8 @@ package main
 import (
 	"testing"
 	"time"
+
+	"github.com/mattn/go-runewidth"
 )
 
 // TestIsInTimeRange tests the time range checking function including wraparound cases
@@ -60,6 +62,11 @@ func TestTruncateOrPad(t *testing.T) {
 		{"empty string", "", 3, "   "},
 		{"single char", "a", 5, "a    "},
 		{"zero width", "test", 0, ""},
+		// Widths are display cells, not bytes: "José" is 5 bytes but 4 cells
+		{"accented - pad by cells", "José", 6, "José  "},
+		{"CJK - pad by cells", "田中", 6, "田中  "},
+		// Truncating a wide char that won't fit pads the leftover cell
+		{"CJK - truncate to odd width", "田中太郎", 5, "田中 "},
 	}
 
 	for _, tt := range tests {
@@ -69,9 +76,9 @@ func TestTruncateOrPad(t *testing.T) {
 				t.Errorf("truncateOrPad(%q, %d) = %q, want %q",
 					tt.input, tt.width, result, tt.expected)
 			}
-			if len(result) != tt.width {
-				t.Errorf("truncateOrPad(%q, %d) returned length %d, want %d",
-					tt.input, tt.width, len(result), tt.width)
+			if w := runewidth.StringWidth(result); w != tt.width {
+				t.Errorf("truncateOrPad(%q, %d) returned display width %d, want %d",
+					tt.input, tt.width, w, tt.width)
 			}
 		})
 	}
@@ -142,32 +149,6 @@ func TestCalculateOffsetHours(t *testing.T) {
 	}
 }
 
-// TestCalculateShiftAmount tests the shift amount calculation for shared mode
-func TestCalculateShiftAmount(t *testing.T) {
-	tests := []struct {
-		name        string
-		offsetHours float64
-		barWidth    int
-		expected    int
-	}{
-		{"no offset", 0.0, 48, 0},
-		{"positive offset +9h", 9.0, 48, 18},   // 9/24 * 48 = 18
-		{"negative offset -5h", -5.0, 48, -10}, // -5/24 * 48 = -10
-		{"half hour offset", 0.5, 48, 1},       // 0.5/24 * 48 = 1
-		{"small bar width", 3.0, 24, 3},        // 3/24 * 24 = 3
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := calculateShiftAmount(tt.offsetHours, tt.barWidth)
-			if result != tt.expected {
-				t.Errorf("calculateShiftAmount(%v, %d) = %d, want %d",
-					tt.offsetHours, tt.barWidth, result, tt.expected)
-			}
-		})
-	}
-}
-
 // TestFormatOffsetString tests the offset formatting function
 func TestFormatOffsetString(t *testing.T) {
 	tests := []struct {
@@ -181,6 +162,9 @@ func TestFormatOffsetString(t *testing.T) {
 		{"positive half hour", 5.5, "+5.5h"},
 		{"negative half hour", -3.5, "-3.5h"},
 		{"positive large", 12.0, "+12h"},
+		{"quarter hour (Nepal)", 5.75, "+5.75h"},
+		{"negative quarter hour", -9.75, "-9.75h"},
+		{"chatham islands", 12.75, "+12.75h"},
 	}
 
 	for _, tt := range tests {
@@ -211,10 +195,10 @@ func TestRenderIndividualBar(t *testing.T) {
 		Colleague: Colleague{
 			Name:       "Test",
 			Timezone:   "America/New_York",
-			WorkStart:  9,
-			WorkEnd:    17,
-			SleepStart: 23,
-			SleepEnd:   7,
+			WorkStart:  HourPtr(9),
+			WorkEnd:    HourPtr(17),
+			SleepStart: HourPtr(23),
+			SleepEnd:   HourPtr(7),
 		},
 		CurrentTime:   testTime,
 		IsWorkingTime: true,
@@ -253,10 +237,10 @@ func TestRenderIndividualBarCharacterCount(t *testing.T) {
 		Colleague: Colleague{
 			Name:       "Test",
 			Timezone:   "America/New_York",
-			WorkStart:  9,
-			WorkEnd:    17,
-			SleepStart: 23,
-			SleepEnd:   7,
+			WorkStart:  HourPtr(9),
+			WorkEnd:    HourPtr(17),
+			SleepStart: HourPtr(23),
+			SleepEnd:   HourPtr(7),
 		},
 		CurrentTime:   testTime,
 		IsWorkingTime: true,
@@ -305,10 +289,10 @@ func TestRenderSharedBarOffsetDirection(t *testing.T) {
 		Colleague: Colleague{
 			Name:       "Test",
 			Timezone:   "Remote",
-			WorkStart:  9,
-			WorkEnd:    17,
-			SleepStart: 23,
-			SleepEnd:   7,
+			WorkStart:  HourPtr(9),
+			WorkEnd:    HourPtr(17),
+			SleepStart: HourPtr(23),
+			SleepEnd:   HourPtr(7),
 		},
 		CurrentTime:   testTime,
 		IsWorkingTime: true,
@@ -331,16 +315,59 @@ func TestRenderSharedBarOffsetDirection(t *testing.T) {
 	}
 }
 
+// TestBarCharPrecedence tests that configured work hours win over
+// overlapping (default) sleep hours in the timeline bar
+func TestBarCharPrecedence(t *testing.T) {
+	nightShift := ColleagueTime{
+		Colleague: Colleague{
+			Name:      "Night Owl",
+			Timezone:  "UTC",
+			WorkStart: HourPtr(0),
+			WorkEnd:   HourPtr(8),
+			// Sleep unset: defaults to 23-7, overlapping the work range
+		},
+	}
+
+	for hour := 0; hour < 8; hour++ {
+		if got := barCharForHour(nightShift, hour); got != '█' {
+			t.Errorf("hour %d: got %q, want work block (configured work must win over default sleep)", hour, got)
+		}
+	}
+	// 23:00 is sleep (outside the work range)
+	if got := barCharForHour(nightShift, 23); got != '░' {
+		t.Errorf("hour 23: got %q, want sleep", got)
+	}
+	// Midday is off-hours
+	if got := barCharForHour(nightShift, 12); got != '▓' {
+		t.Errorf("hour 12: got %q, want off-hours", got)
+	}
+
+	// On weekends the work block disappears and sleep shows through
+	weekend := nightShift
+	weekend.IsWeekend = true
+	if got := barCharForHour(weekend, 2); got != '░' {
+		t.Errorf("weekend hour 2: got %q, want sleep", got)
+	}
+
+	// A default 9-17 worker is unchanged by the precedence flip
+	standard := ColleagueTime{Colleague: Colleague{Name: "Standard", Timezone: "UTC"}}
+	if got := barCharForHour(standard, 10); got != '█' {
+		t.Errorf("standard hour 10: got %q, want work", got)
+	}
+	if got := barCharForHour(standard, 2); got != '░' {
+		t.Errorf("standard hour 2: got %q, want sleep", got)
+	}
+	if got := barCharForHour(standard, 20); got != '▓' {
+		t.Errorf("standard hour 20: got %q, want off-hours", got)
+	}
+}
+
 // TestColleagueGetters tests the accessor methods with defaults
 func TestColleagueGetters(t *testing.T) {
-	t.Run("default values when zero", func(t *testing.T) {
+	t.Run("default values when unset", func(t *testing.T) {
 		c := Colleague{
-			Name:       "Test",
-			Timezone:   "UTC",
-			WorkStart:  0,
-			WorkEnd:    0,
-			SleepStart: 0,
-			SleepEnd:   0,
+			Name:     "Test",
+			Timezone: "UTC",
 		}
 
 		if c.GetWorkStart() != DefaultWorkStart {
@@ -361,10 +388,10 @@ func TestColleagueGetters(t *testing.T) {
 		c := Colleague{
 			Name:       "Test",
 			Timezone:   "UTC",
-			WorkStart:  8,
-			WorkEnd:    16,
-			SleepStart: 22,
-			SleepEnd:   6,
+			WorkStart:  HourPtr(8),
+			WorkEnd:    HourPtr(16),
+			SleepStart: HourPtr(22),
+			SleepEnd:   HourPtr(6),
 		}
 
 		if c.GetWorkStart() != 8 {
@@ -378,6 +405,22 @@ func TestColleagueGetters(t *testing.T) {
 		}
 		if c.GetSleepEnd() != 6 {
 			t.Errorf("GetSleepEnd() = %d, want 6", c.GetSleepEnd())
+		}
+	})
+
+	t.Run("midnight (0) is a valid configured value", func(t *testing.T) {
+		c := Colleague{
+			Name:      "Night Owl",
+			Timezone:  "UTC",
+			WorkStart: HourPtr(0),
+			SleepEnd:  HourPtr(0),
+		}
+
+		if c.GetWorkStart() != 0 {
+			t.Errorf("GetWorkStart() = %d, want 0 (midnight)", c.GetWorkStart())
+		}
+		if c.GetSleepEnd() != 0 {
+			t.Errorf("GetSleepEnd() = %d, want 0 (midnight)", c.GetSleepEnd())
 		}
 	})
 }
