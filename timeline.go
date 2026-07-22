@@ -19,11 +19,14 @@ import (
 func (m Model) renderTimeline() string {
 	var b strings.Builder
 
-	// Header
-	localTime := time.Now().In(m.localTimezone)
+	// Header (displayNow applies any scrub offset)
+	localTime := m.displayNow()
 	header := fmt.Sprintf("🌍 Timeline View - Local Time: %s (%s)",
 		FormatTime(localTime, m.config.TimeFormat),
 		FormatDate(localTime))
+	if m.timeOffset != 0 {
+		header += fmt.Sprintf("  ⏩ scrubbed %s", formatOffsetString(m.timeOffset.Hours()))
+	}
 	b.WriteString(headerStyle.Render(header))
 	b.WriteString("\n\n")
 
@@ -35,15 +38,16 @@ func (m Model) renderTimeline() string {
 	topIndicator, bottomIndicator := renderScrollIndicators(m.scrollOffset, MaxVisible, len(m.colleagues))
 	b.WriteString(topIndicator)
 
-	// Render visible colleagues
+	// Render visible colleagues (shifted by any scrub offset)
 	for i := start; i < end; i++ {
+		ct := m.scrubbed(m.colleagues[i])
 		switch {
-		case m.colleagues[i].InvalidTimezone:
-			b.WriteString(m.renderInvalidTimelineRow(m.colleagues[i]))
+		case ct.InvalidTimezone:
+			b.WriteString(m.renderInvalidTimelineRow(ct))
 		case m.config.TimelineMode == "individual":
-			b.WriteString(m.renderTimelineRow(i, m.colleagues[i]))
+			b.WriteString(m.renderTimelineRow(i, ct))
 		default:
-			b.WriteString(m.renderSharedTimelineRow(i, m.colleagues[i]))
+			b.WriteString(m.renderSharedTimelineRow(i, ct))
 		}
 		b.WriteString("\n")
 	}
@@ -259,9 +263,13 @@ func (m Model) renderTimelineFooter() string {
 		"t normal mode",
 		"m " + mode,
 		"↑/↓ scroll",
+		"←/→ scrub time",
 		"c cycle colors",
 		"? help",
 		"q quit",
+	}
+	if m.timeOffset != 0 {
+		help = append(help, "esc back to now")
 	}
 	return footerStyle.Render(strings.Join(help, " • "))
 }
@@ -351,8 +359,8 @@ func (m Model) renderSharedTimelineRow(index int, ct ColleagueTime) string {
 func (m Model) renderSharedBar(ct ColleagueTime, offsetHours float64, barWidth int) string {
 	bar := make([]rune, barWidth)
 
-	// Calculate current time marker position (local time)
-	localTime := time.Now().In(m.localTimezone)
+	// Calculate current time marker position (local time, scrub-aware)
+	localTime := m.displayNow()
 	currentHour := float64(localTime.Hour())
 	currentMinute := float64(localTime.Minute())
 	currentPosition := (currentHour + currentMinute/60.0) / 24.0
@@ -415,13 +423,20 @@ func computeSharedOverlap(colleagues []ColleagueTime, localTz *time.Location, ba
 // have valid timezones.
 func (m Model) renderOverlapRow() string {
 	barWidth := m.calculateTimelineBarWidth()
-	counts, total := computeSharedOverlap(m.colleagues, m.localTimezone, barWidth)
+
+	// Count against scrubbed times so the row follows time scrubbing
+	// (the weekday, and with it the work blocks, can change)
+	cts := make([]ColleagueTime, len(m.colleagues))
+	for i, ct := range m.colleagues {
+		cts[i] = m.scrubbed(ct)
+	}
+	counts, total := computeSharedOverlap(cts, m.localTimezone, barWidth)
 	if total < 2 {
 		return ""
 	}
 
 	// Current time marker at the local-time position, like every shared row
-	localTime := time.Now().In(m.localTimezone)
+	localTime := m.displayNow()
 	currentPosition := (float64(localTime.Hour()) + float64(localTime.Minute())/60.0) / 24.0
 	markerIndex := int(currentPosition * float64(barWidth))
 

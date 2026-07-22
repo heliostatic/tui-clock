@@ -362,6 +362,39 @@ func TestBarCharPrecedence(t *testing.T) {
 	}
 }
 
+// TestScrubbed tests that time scrubbing recomputes weekday-dependent flags
+func TestScrubbed(t *testing.T) {
+	// Friday 23:00 UTC
+	friday := time.Date(2025, 1, 24, 23, 0, 0, 0, time.UTC)
+	ct := ColleagueTime{
+		Colleague:   Colleague{Name: "Test", Timezone: "UTC"},
+		CurrentTime: friday,
+	}
+
+	// +2h crosses midnight into Saturday
+	m := Model{timeOffset: 2 * time.Hour}
+	s := m.scrubbed(ct)
+	if !s.IsWeekend {
+		t.Error("Expected scrub across midnight Friday->Saturday to set IsWeekend")
+	}
+	if s.CurrentTime.Hour() != 1 {
+		t.Errorf("Expected scrubbed hour 1, got %d", s.CurrentTime.Hour())
+	}
+
+	// Scrub from Friday 23:00 back into working hours (default 9-17)
+	m = Model{timeOffset: -8 * time.Hour}
+	s = m.scrubbed(ct)
+	if !s.IsWorkingTime {
+		t.Error("Expected 15:00 Friday to be working time after -8h scrub")
+	}
+
+	// Zero offset returns the value unchanged
+	m = Model{}
+	if got := m.scrubbed(ct); got != ct {
+		t.Error("Expected zero scrub to return the input unchanged")
+	}
+}
+
 // TestComputeSharedOverlap tests the team-overlap counting with fixed
 // zones so results are deterministic
 func TestComputeSharedOverlap(t *testing.T) {

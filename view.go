@@ -290,6 +290,8 @@ TIMELINE MODE
   m            Toggle mode (individual/shared)
   c            Cycle color schemes
   ↑/↓, k/j     Scroll through colleagues
+  ←/→          Scrub time ±1h (preview future/past)
+  Esc          Back to now (or exit timeline)
 
 TIMELINE LEGEND
   ░ Dark       Sleep hours (11pm-7am)

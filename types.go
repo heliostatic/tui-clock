@@ -110,11 +110,12 @@ type Model struct {
 	configPath      string
 	colleagues      []ColleagueTime
 	localTimezone   *time.Location
-	cursor          int       // Selected item index (or last known position)
-	selectionActive bool      // Whether selection is visually shown
-	lastActionTime  time.Time // Time of last user action (for auto-hide)
-	scrollOffset    int       // Scroll position
-	inputMode       InputMode // Current input mode
+	cursor          int           // Selected item index (or last known position)
+	selectionActive bool          // Whether selection is visually shown
+	lastActionTime  time.Time     // Time of last user action (for auto-hide)
+	scrollOffset    int           // Scroll position
+	inputMode       InputMode     // Current input mode
+	timeOffset      time.Duration // Timeline scrub offset from now (0 = live)
 	nameInput       textinput.Model
 	editIndex       int    // Index of colleague being edited
 	errorMsg        string // Error message to display

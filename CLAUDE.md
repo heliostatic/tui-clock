@@ -76,6 +76,7 @@ go mod download
 - `f`: Toggle time format (12h ↔ 24h)
 - `t`: Toggle timeline visualization mode
 - `m`: Toggle timeline mode (individual ↔ shared) - only in timeline view
+- `←/→`: Scrub time ±1h to preview future/past (Esc returns to now) - only in timeline view
 - `c`: Cycle color schemes - only in timeline view
 - `?`: Help screen
 - `q/Esc`: Quit
