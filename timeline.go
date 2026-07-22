@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -380,9 +381,8 @@ func formatOffsetString(offsetHours float64) string {
 		offsetHours = -offsetHours
 	}
 
-	// Format as hours (handle half hours too)
-	if offsetHours == float64(int(offsetHours)) {
-		return fmt.Sprintf("%s%dh", sign, int(offsetHours))
-	}
-	return fmt.Sprintf("%s%.1fh", sign, offsetHours)
+	// Shortest exact decimal: real-world offsets are quarter-hour
+	// multiples, so this yields "+5h", "+5.5h", "+5.75h" — never a
+	// rounded value like "+5.8h" for Nepal's +5:45
+	return sign + strconv.FormatFloat(offsetHours, 'f', -1, 64) + "h"
 }

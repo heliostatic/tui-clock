@@ -162,6 +162,9 @@ func TestFormatOffsetString(t *testing.T) {
 		{"positive half hour", 5.5, "+5.5h"},
 		{"negative half hour", -3.5, "-3.5h"},
 		{"positive large", 12.0, "+12h"},
+		{"quarter hour (Nepal)", 5.75, "+5.75h"},
+		{"negative quarter hour", -9.75, "-9.75h"},
+		{"chatham islands", 12.75, "+12.75h"},
 	}
 
 	for _, tt := range tests {
