@@ -164,15 +164,15 @@ var (
 			Light: "#d8dee9", // Snow Storm nord4
 			Dark:  "#4c566a", // Polar Night nord3
 		},
-		WorkColor:     lipgloss.Color("#a3be8c"), // Aurora green nord14
-		MarkerColor:   lipgloss.Color("#88c0d0"), // Frost cyan nord8
-		WeekendTint:   lipgloss.Color("#b48ead"), // Aurora purple nord15
-		Primary:       lipgloss.Color("#88c0d0"), // Frost cyan nord8
-		Secondary:     lipgloss.Color("#81a1c1"), // Frost blue nord9
-		Success:       lipgloss.Color("#a3be8c"), // Aurora green nord14
-		Warning:       lipgloss.Color("#ebcb8b"), // Aurora yellow nord13
-		Error:         lipgloss.Color("#bf616a"), // Aurora red nord11
-		Muted:         lipgloss.Color("#4c566a"), // Polar Night nord3
+		WorkColor:   lipgloss.Color("#a3be8c"), // Aurora green nord14
+		MarkerColor: lipgloss.Color("#88c0d0"), // Frost cyan nord8
+		WeekendTint: lipgloss.Color("#b48ead"), // Aurora purple nord15
+		Primary:     lipgloss.Color("#88c0d0"), // Frost cyan nord8
+		Secondary:   lipgloss.Color("#81a1c1"), // Frost blue nord9
+		Success:     lipgloss.Color("#a3be8c"), // Aurora green nord14
+		Warning:     lipgloss.Color("#ebcb8b"), // Aurora yellow nord13
+		Error:       lipgloss.Color("#bf616a"), // Aurora red nord11
+		Muted:       lipgloss.Color("#4c566a"), // Polar Night nord3
 	}
 
 	// Solarized - Precision colors for reduced eye strain
