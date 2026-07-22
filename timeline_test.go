@@ -149,32 +149,6 @@ func TestCalculateOffsetHours(t *testing.T) {
 	}
 }
 
-// TestCalculateShiftAmount tests the shift amount calculation for shared mode
-func TestCalculateShiftAmount(t *testing.T) {
-	tests := []struct {
-		name        string
-		offsetHours float64
-		barWidth    int
-		expected    int
-	}{
-		{"no offset", 0.0, 48, 0},
-		{"positive offset +9h", 9.0, 48, 18},   // 9/24 * 48 = 18
-		{"negative offset -5h", -5.0, 48, -10}, // -5/24 * 48 = -10
-		{"half hour offset", 0.5, 48, 1},       // 0.5/24 * 48 = 1
-		{"small bar width", 3.0, 24, 3},        // 3/24 * 24 = 3
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := calculateShiftAmount(tt.offsetHours, tt.barWidth)
-			if result != tt.expected {
-				t.Errorf("calculateShiftAmount(%v, %d) = %d, want %d",
-					tt.offsetHours, tt.barWidth, result, tt.expected)
-			}
-		})
-	}
-}
-
 // TestFormatOffsetString tests the offset formatting function
 func TestFormatOffsetString(t *testing.T) {
 	tests := []struct {

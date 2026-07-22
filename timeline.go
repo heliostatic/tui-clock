@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"strings"
 	"time"
 
@@ -290,86 +289,6 @@ func calculateOffsetHours(t time.Time, localTz *time.Location) float64 {
 
 	offsetSeconds := remoteOffset - localOffset
 	return float64(offsetSeconds) / 3600.0
-}
-
-// calculateShiftAmount returns the number of bar positions to shift
-// based on timezone offset. Positive offset shifts right (future),
-// negative shifts left (past).
-//
-// Example: offset +9h with barWidth 48 returns 18 positions
-func calculateShiftAmount(offsetHours float64, barWidth int) int {
-	shiftFraction := offsetHours / 24.0
-	shiftAmount := int(math.Round(shiftFraction * float64(barWidth)))
-	return shiftAmount
-}
-
-// renderSharedTimelineHeader renders the header row for shared timeline mode
-func (m Model) renderSharedTimelineHeader() string {
-	barWidth := m.calculateTimelineBarWidth()
-
-	// Build the label line character by character for proper alignment
-	labelChars := make([]rune, barWidth+2) // +2 for brackets
-
-	// Initialize with spaces
-	for i := range labelChars {
-		labelChars[i] = ' '
-	}
-
-	// Set brackets
-	labelChars[0] = '['
-	labelChars[barWidth+1] = ']'
-
-	// Calculate positions for each hour (0, 6, 12, 18, 24)
-	// Using HH:MM format for shared mode
-	hours := []int{0, 6, 12, 18, 24}
-	labels := []string{"00:00", "06:00", "12:00", "18:00", "00:00"}
-
-	for i, hour := range hours {
-		// Calculate exact position for this hour in the bar
-		centerPos := int(float64(hour) / 24.0 * float64(barWidth))
-		label := labels[i]
-		labelLen := len(label)
-
-		// Calculate start position to center the label
-		// +1 accounts for the opening bracket
-		startPos := max(
-			// Ensure we don't go out of bounds
-			centerPos-(labelLen/2)+1, 1)
-		if startPos+labelLen > barWidth+1 {
-			startPos = barWidth + 1 - labelLen
-		}
-
-		// Place each character of the label
-		for j, ch := range label {
-			pos := startPos + j
-			if pos > 0 && pos <= barWidth {
-				labelChars[pos] = ch
-			}
-		}
-	}
-
-	// Calculate current time marker position
-	localTime := time.Now().In(m.localTimezone)
-	currentHour := float64(localTime.Hour())
-	currentMinute := float64(localTime.Minute())
-	currentPosition := (currentHour + currentMinute/60.0) / 24.0
-	markerIndex := int(currentPosition * float64(barWidth))
-
-	// Build the display
-	scheme := getCurrentColorScheme(m.config.ColorScheme)
-
-	// Left padding to align with colleague rows
-	leftPadding := NameFieldWidth + 2
-	padding := strings.Repeat(" ", leftPadding)
-
-	labelLine := padding + string(labelChars)
-
-	// Build marker label (just "now", the bars themselves show the position)
-	markerPadding := strings.Repeat(" ", leftPadding+markerIndex+1)
-	nowLabel := lipgloss.NewStyle().Foreground(scheme.MarkerColor).Bold(true).Render("now")
-	markerLine := markerPadding + nowLabel + "\n"
-
-	return footerStyle.Render("Local Time:") + "      " + footerStyle.Render(labelLine) + "\n" + markerLine
 }
 
 // renderSharedTimelineRow renders a single colleague's row in shared timeline mode
