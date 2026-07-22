@@ -52,7 +52,7 @@ go mod download
 
 1. **Initialization**: Load config from `~/.config/tui-clock/config.yaml` (or custom path via `-config` flag)
 2. **Auto-detection**: Local timezone detected automatically using `time.Now().Location()`
-3. **Tick Loop**: Every second, `TickMsg` triggers time recalculation for all colleagues
+3. **Tick Loop**: Every second, `TickMsg` triggers time recalculation for all colleagues, plus a config hot-reload check (`maybeReloadConfig`): external file edits are picked up by mtime comparison, deferred while a modal edit flow is open, and torn/invalid writes are retried on later ticks without touching the file
 4. **State Updates**: User input modifies model state, changes are persisted to config file
 5. **Rendering**: View function renders current state with scrolling support (max 8 visible)
 

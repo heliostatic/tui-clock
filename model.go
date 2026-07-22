@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -32,6 +33,12 @@ func NewModel(config Config, configPath string) Model {
 		searchResults:      []SearchResult{},
 		searchCursor:       0,
 		searchScrollOffset: 0,
+	}
+
+	// Record the config file's mtime so hot-reload can tell external
+	// edits apart from our own writes
+	if info, err := os.Stat(configPath); err == nil {
+		m.configMtime = info.ModTime()
 	}
 
 	// Compute initial times
@@ -89,9 +96,62 @@ func (m *Model) updateColleagueTimes() {
 	m.colleagues = ComputeColleagueTimes(m.config.Colleagues, m.localTimezone)
 }
 
-// saveConfig saves the current config to file
+// saveConfig saves the current config to file and records the
+// resulting mtime so the hot-reload check doesn't re-read our own write
 func (m *Model) saveConfig() error {
-	return SaveConfig(m.configPath, m.config)
+	if err := SaveConfig(m.configPath, m.config); err != nil {
+		return err
+	}
+	if info, err := os.Stat(m.configPath); err == nil {
+		m.configMtime = info.ModTime()
+	}
+	return nil
+}
+
+// maybeReloadConfig picks up external edits to the config file. Called
+// every tick; a no-op unless the file's mtime moved. Reloads are
+// deferred while a modal edit flow is open (its editIndex points into
+// the config), and a torn or invalid file is skipped and retried on a
+// later tick rather than clobbering the running state.
+func (m *Model) maybeReloadConfig() {
+	switch m.inputMode {
+	case ModeNormal, ModeTimeline, ModeHelp:
+		// Safe to reload
+	default:
+		return
+	}
+
+	info, err := os.Stat(m.configPath)
+	if err != nil {
+		return
+	}
+	if info.ModTime().Equal(m.configMtime) {
+		return
+	}
+
+	config, err := LoadConfig(m.configPath)
+	if err != nil {
+		// Likely a partial editor write; leave configMtime unchanged so
+		// the next tick retries
+		return
+	}
+
+	m.configMtime = info.ModTime()
+	m.config = config
+	m.updateColleagueTimes()
+
+	// The list may have shrunk: clamp selection and scroll
+	if m.cursor >= len(m.colleagues) {
+		m.cursor = len(m.colleagues) - 1 // -1 (no selection) when empty
+	}
+	if m.cursor < 0 {
+		m.cursor = -1
+		m.selectionActive = false
+	}
+	maxScroll := max(len(m.colleagues)-MaxVisible, 0)
+	if m.scrollOffset > maxScroll {
+		m.scrollOffset = maxScroll
+	}
 }
 
 // applyWorkHours sets a colleague's work hours (nil = use defaults) and saves
