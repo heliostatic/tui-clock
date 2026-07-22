@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -125,11 +126,15 @@ func TestMaybeReloadConfigSurvivesTornWrite(t *testing.T) {
 	}
 }
 
-func TestMaybeReloadConfigClampsSelection(t *testing.T) {
+func TestMaybeReloadConfigResetsSelection(t *testing.T) {
 	m, path := newReloadTestModel(t)
 	m.cursor = len(m.colleagues) - 1 // Select the last of the 3 defaults
 	m.selectionActive = true
+	m.scrollOffset = 2
 
+	// The external edit may reorder entries, so keeping the cursor
+	// would silently select a different colleague; the selection is
+	// dropped instead (matching in-app delete behavior)
 	external := `colleagues:
   - name: "Only One"
     timezone: "UTC"
@@ -137,14 +142,89 @@ func TestMaybeReloadConfigClampsSelection(t *testing.T) {
 	writeConfigWithMtime(t, path, external, time.Now().Add(time.Hour))
 	m.maybeReloadConfig()
 
-	if m.cursor != 0 {
-		t.Errorf("Cursor = %d, want clamped to 0", m.cursor)
+	if m.cursor != -1 || m.selectionActive {
+		t.Errorf("Cursor = %d selectionActive = %v, want -1/false after reload", m.cursor, m.selectionActive)
+	}
+	if m.scrollOffset != 0 {
+		t.Errorf("scrollOffset = %d, want clamped to 0", m.scrollOffset)
+	}
+}
+
+func TestMaybeReloadConfigTriggersOnOlderMtime(t *testing.T) {
+	m, path := newReloadTestModel(t)
+
+	// A timestamp-preserving restore (cp -p, rsync -t, tar -x) can give
+	// the file an mtime EARLIER than the one we recorded; any mtime
+	// difference must trigger a reload, not just newer ones. The edit
+	// is deliberately the same byte length as the current file so the
+	// size fallback can't mask a wrong mtime comparison (e.g. After
+	// instead of Equal).
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile failed: %v", err)
+	}
+	sameSize := strings.Replace(string(data), "Alice", "Elise", 1)
+	if len(sameSize) != len(data) {
+		t.Fatal("Test setup: replacement must preserve file size")
+	}
+	writeConfigWithMtime(t, path, sameSize, m.configMtime.Add(-time.Hour))
+	m.maybeReloadConfig()
+
+	found := false
+	for _, c := range m.config.Colleagues {
+		if strings.Contains(c.Name, "Elise") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("Same-size older-mtime edit not reloaded: %+v", m.config.Colleagues)
+	}
+}
+
+func TestMaybeReloadConfigDetectsSameMtimeRewrite(t *testing.T) {
+	m, path := newReloadTestModel(t)
+
+	// On coarse-timestamp filesystems an external write can land in the
+	// same timestamp quantum as our own save; the size comparison must
+	// still catch it (unless sizes also collide, which we accept)
+	external := `colleagues:
+  - name: "Same Quantum"
+    timezone: "UTC"
+`
+	writeConfigWithMtime(t, path, external, m.configMtime)
+	m.maybeReloadConfig()
+
+	if len(m.config.Colleagues) != 1 || m.config.Colleagues[0].Name != "Same Quantum" {
+		t.Errorf("Same-mtime different-size edit not reloaded: %+v", m.config.Colleagues)
+	}
+}
+
+func TestMaybeReloadConfigNeverResurrectsDeletedFile(t *testing.T) {
+	m, path := newReloadTestModel(t)
+	originalCount := len(m.config.Colleagues)
+
+	// Editors with rename-style saves briefly remove the file; the
+	// reload path must neither adopt defaults nor recreate the file
+	if err := os.Remove(path); err != nil {
+		t.Fatalf("Failed to remove config: %v", err)
+	}
+	m.maybeReloadConfig()
+
+	if len(m.config.Colleagues) != originalCount {
+		t.Error("Reload must keep the running config when the file vanishes")
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Error("Reload must not recreate a deleted config file")
 	}
 
-	// Shrink to empty: cursor becomes no-selection
-	writeConfigWithMtime(t, path, "colleagues: []\n", time.Now().Add(2*time.Hour))
+	// When the rename completes, the new content is picked up
+	external := `colleagues:
+  - name: "Renamed Into Place"
+    timezone: "UTC"
+`
+	writeConfigWithMtime(t, path, external, time.Now().Add(time.Hour))
 	m.maybeReloadConfig()
-	if m.cursor != -1 || m.selectionActive {
-		t.Errorf("Empty list: cursor = %d selectionActive = %v, want -1/false", m.cursor, m.selectionActive)
+	if len(m.config.Colleagues) != 1 || m.config.Colleagues[0].Name != "Renamed Into Place" {
+		t.Errorf("Expected reload after rename completed, got %+v", m.config.Colleagues)
 	}
 }

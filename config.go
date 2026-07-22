@@ -56,6 +56,14 @@ func LoadConfig(path string) (Config, error) {
 		return Config{}, fmt.Errorf("failed to read config file: %w", err)
 	}
 
+	return parseConfig(data)
+}
+
+// parseConfig unmarshals config data and normalizes it (defaults and
+// legacy migrations). It never touches the filesystem, which lets the
+// hot-reload path use it without LoadConfig's create-if-missing side
+// effect.
+func parseConfig(data []byte) (Config, error) {
 	var config Config
 	if err := yaml.Unmarshal(data, &config); err != nil {
 		return Config{}, fmt.Errorf("failed to parse config file: %w", err)

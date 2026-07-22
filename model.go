@@ -35,10 +35,11 @@ func NewModel(config Config, configPath string) Model {
 		searchScrollOffset: 0,
 	}
 
-	// Record the config file's mtime so hot-reload can tell external
-	// edits apart from our own writes
+	// Record the config file's mtime/size so hot-reload can tell
+	// external edits apart from our own writes
 	if info, err := os.Stat(configPath); err == nil {
 		m.configMtime = info.ModTime()
+		m.configSize = info.Size()
 	}
 
 	// Compute initial times
@@ -97,22 +98,29 @@ func (m *Model) updateColleagueTimes() {
 }
 
 // saveConfig saves the current config to file and records the
-// resulting mtime so the hot-reload check doesn't re-read our own write
+// resulting mtime/size so the hot-reload check doesn't re-read our own
+// write. Conflict semantics are whole-file last-writer-wins: an
+// external edit made while the app holds unsaved intent (e.g. an open
+// prompt) is overwritten by this save, same as before hot-reload
+// existed.
 func (m *Model) saveConfig() error {
 	if err := SaveConfig(m.configPath, m.config); err != nil {
 		return err
 	}
 	if info, err := os.Stat(m.configPath); err == nil {
 		m.configMtime = info.ModTime()
+		m.configSize = info.Size()
 	}
 	return nil
 }
 
 // maybeReloadConfig picks up external edits to the config file. Called
-// every tick; a no-op unless the file's mtime moved. Reloads are
-// deferred while a modal edit flow is open (its editIndex points into
-// the config), and a torn or invalid file is skipped and retried on a
-// later tick rather than clobbering the running state.
+// every tick; a no-op unless the file's mtime or size changed. Reloads
+// are deferred while a modal edit flow is open (its editIndex points
+// into the config). This path never writes to the file: a torn or
+// invalid write is skipped and retried on a later tick, and a file
+// that vanishes mid-rename (editor save cycles) is left alone rather
+// than recreated.
 func (m *Model) maybeReloadConfig() {
 	switch m.inputMode {
 	case ModeNormal, ModeTimeline, ModeHelp:
@@ -125,29 +133,33 @@ func (m *Model) maybeReloadConfig() {
 	if err != nil {
 		return
 	}
-	if info.ModTime().Equal(m.configMtime) {
+	if info.ModTime().Equal(m.configMtime) && info.Size() == m.configSize {
 		return
 	}
 
-	config, err := LoadConfig(m.configPath)
+	// Read + parse directly: LoadConfig would create-and-save defaults
+	// if the file disappeared between the Stat above and the read
+	data, err := os.ReadFile(m.configPath)
 	if err != nil {
-		// Likely a partial editor write; leave configMtime unchanged so
-		// the next tick retries
+		return
+	}
+	config, err := parseConfig(data)
+	if err != nil {
+		// Likely a partial editor write; state unchanged so the next
+		// tick retries
 		return
 	}
 
 	m.configMtime = info.ModTime()
+	m.configSize = info.Size()
 	m.config = config
 	m.updateColleagueTimes()
 
-	// The list may have shrunk: clamp selection and scroll
-	if m.cursor >= len(m.colleagues) {
-		m.cursor = len(m.colleagues) - 1 // -1 (no selection) when empty
-	}
-	if m.cursor < 0 {
-		m.cursor = -1
-		m.selectionActive = false
-	}
+	// The external edit may have reordered or replaced entries: drop
+	// the selection rather than leave it silently pointing at a
+	// different colleague (matches in-app delete behavior)
+	m.cursor = -1
+	m.selectionActive = false
 	maxScroll := max(len(m.colleagues)-MaxVisible, 0)
 	if m.scrollOffset > maxScroll {
 		m.scrollOffset = maxScroll
