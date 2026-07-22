@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"os"
 
+	// Embed the IANA timezone database so time.LoadLocation works on
+	// systems without one (Windows, minimal containers)
+	_ "time/tzdata"
+
 	tea "github.com/charmbracelet/bubbletea"
 )
 
