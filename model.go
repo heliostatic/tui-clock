@@ -64,6 +64,26 @@ func newColleague(name, timezone string) Colleague {
 	}
 }
 
+// displayNow returns the local time the timeline should render: the
+// real current time plus any scrub offset
+func (m Model) displayNow() time.Time {
+	return time.Now().In(m.localTimezone).Add(m.timeOffset)
+}
+
+// scrubbed returns a copy of ct shifted by the scrub offset, with the
+// time-dependent flags recomputed for the shifted moment (scrubbing
+// can cross midnight and change the weekday)
+func (m Model) scrubbed(ct ColleagueTime) ColleagueTime {
+	if m.timeOffset == 0 || ct.InvalidTimezone {
+		return ct
+	}
+	ct.CurrentTime = ct.CurrentTime.Add(m.timeOffset)
+	ct.IsWeekend = ct.CurrentTime.Weekday() == time.Saturday || ct.CurrentTime.Weekday() == time.Sunday
+	ct.IsWorkingTime = !ct.IsWeekend &&
+		isInTimeRange(ct.CurrentTime.Hour(), ct.Colleague.GetWorkStart(), ct.Colleague.GetWorkEnd())
+	return ct
+}
+
 // updateColleagueTimes recomputes all colleague times
 func (m *Model) updateColleagueTimes() {
 	m.colleagues = ComputeColleagueTimes(m.config.Colleagues, m.localTimezone)

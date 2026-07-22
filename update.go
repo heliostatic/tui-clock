@@ -269,9 +269,26 @@ func (m Model) handleHelpMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // handleTimelineMode handles input in timeline visualization mode
 func (m Model) handleTimelineMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
-	case "q", "esc", "t":
-		// Return to normal mode
+	case "q", "t":
+		// Return to normal mode (scrub does not persist across modes)
 		m.inputMode = ModeNormal
+		m.timeOffset = 0
+
+	case "esc":
+		// First esc resets an active scrub; a second exits timeline mode
+		if m.timeOffset != 0 {
+			m.timeOffset = 0
+		} else {
+			m.inputMode = ModeNormal
+		}
+
+	case "left":
+		// Scrub time backward one hour
+		m.timeOffset -= time.Hour
+
+	case "right":
+		// Scrub time forward one hour
+		m.timeOffset += time.Hour
 
 	case "up", "k":
 		// Scroll up
