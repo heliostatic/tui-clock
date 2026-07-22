@@ -187,6 +187,46 @@ func TestLoadConfigPreservesMidnight(t *testing.T) {
 	}
 }
 
+func TestLoadConfigMigratesLegacySentinel(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "legacy_config.yaml")
+
+	// Configs written by older versions always contained explicit hours,
+	// with sleep_start/sleep_end 0/0 meaning "use defaults"
+	legacyYAML := `time_format: "24h"
+colleagues:
+  - name: "Legacy User"
+    timezone: "UTC"
+    work_start: 9
+    work_end: 17
+    sleep_start: 0
+    sleep_end: 0
+`
+	if err := os.WriteFile(configPath, []byte(legacyYAML), 0644); err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	config, err := LoadConfig(configPath)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+
+	colleague := config.Colleagues[0]
+	if colleague.GetSleepStart() != DefaultSleepStart {
+		t.Errorf("Expected legacy sleep 0/0 to migrate to default start %d, got %d",
+			DefaultSleepStart, colleague.GetSleepStart())
+	}
+	if colleague.GetSleepEnd() != DefaultSleepEnd {
+		t.Errorf("Expected legacy sleep 0/0 to migrate to default end %d, got %d",
+			DefaultSleepEnd, colleague.GetSleepEnd())
+	}
+	// Explicit work hours must survive the migration untouched
+	if colleague.GetWorkStart() != 9 || colleague.GetWorkEnd() != 17 {
+		t.Errorf("Expected work hours 9-17 preserved, got %d-%d",
+			colleague.GetWorkStart(), colleague.GetWorkEnd())
+	}
+}
+
 func TestLoadConfigInvalid(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "invalid_config.yaml")
