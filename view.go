@@ -185,6 +185,14 @@ func (m Model) renderColleagueRow(index int, ct ColleagueTime) string {
 		dateStyle.Render(dateStr),
 	)
 
+	// Upcoming DST transition warning (within DSTLookahead)
+	if ct.HasDSTChange {
+		warn := fmt.Sprintf("⚡%s %s",
+			formatOffsetString(ct.DSTDeltaHours),
+			ct.DSTChangeAt.Format("Jan 2"))
+		line += "  " + offsetStyle.Render(warn)
+	}
+
 	return style.Render(line)
 }
 

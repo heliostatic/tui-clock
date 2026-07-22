@@ -43,6 +43,9 @@ func ComputeColleagueTimes(colleagues []Colleague, localTz *time.Location) []Col
 		hour := colleagueTime.Hour()
 		isWorkingTime := !isWeekend && isInTimeRange(hour, colleague.GetWorkStart(), colleague.GetWorkEnd())
 
+		// Surface upcoming DST transitions so offset changes don't surprise
+		dstAt, dstDelta, hasDST := nextOffsetChange(loc, now, DSTLookahead)
+
 		result = append(result, ColleagueTime{
 			Colleague:     colleague,
 			ConfigIndex:   i,
@@ -50,10 +53,45 @@ func ComputeColleagueTimes(colleagues []Colleague, localTz *time.Location) []Col
 			Offset:        offsetStr,
 			IsWorkingTime: isWorkingTime,
 			IsWeekend:     isWeekend,
+			DSTChangeAt:   dstAt,
+			DSTDeltaHours: dstDelta,
+			HasDSTChange:  hasDST,
 		})
 	}
 
 	return result
+}
+
+// DSTLookahead is how far ahead colleagues' upcoming UTC-offset
+// changes (DST transitions) are surfaced in the list view
+const DSTLookahead = 7 * 24 * time.Hour
+
+// nextOffsetChange finds the next moment loc's UTC offset changes
+// within lookahead of from. Returns the transition time (in loc), the
+// offset delta in hours, and whether a change was found. A window
+// containing two transitions that cancel out is treated as no change;
+// real zones never transition twice in a week.
+func nextOffsetChange(loc *time.Location, from time.Time, lookahead time.Duration) (time.Time, float64, bool) {
+	_, startOff := from.In(loc).Zone()
+	end := from.Add(lookahead)
+	_, endOff := end.In(loc).Zone()
+	if startOff == endOff {
+		return time.Time{}, 0, false
+	}
+
+	// Binary search the boundary to minute precision
+	lo, hi := from, end
+	for hi.Sub(lo) > time.Minute {
+		mid := lo.Add(hi.Sub(lo) / 2)
+		if _, off := mid.In(loc).Zone(); off == startOff {
+			lo = mid
+		} else {
+			hi = mid
+		}
+	}
+
+	_, afterOff := hi.In(loc).Zone()
+	return hi.In(loc), float64(afterOff-startOff) / 3600.0, true
 }
 
 // FormatTime formats a time according to the specified format

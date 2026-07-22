@@ -73,6 +73,11 @@ type ColleagueTime struct {
 	IsWorkingTime   bool
 	IsWeekend       bool
 	InvalidTimezone bool // Timezone failed to load; time fields are zero
+
+	// Upcoming DST transition within DSTLookahead, if any
+	DSTChangeAt   time.Time // In the colleague's timezone
+	DSTDeltaHours float64   // e.g., +1 (spring forward), -1 (fall back)
+	HasDSTChange  bool
 }
 
 // InputMode represents the current input state

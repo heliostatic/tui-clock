@@ -163,6 +163,45 @@ func TestComputeColleagueTimesHalfHourOffset(t *testing.T) {
 	}
 }
 
+func TestNextOffsetChange(t *testing.T) {
+	ny, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatalf("Failed to load America/New_York: %v", err)
+	}
+
+	// US DST ends Sunday Nov 1, 2026 at 02:00 EDT (06:00 UTC): fall back -1h
+	from := time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
+	at, delta, ok := nextOffsetChange(ny, from, 7*24*time.Hour)
+	if !ok {
+		t.Fatal("Expected a DST transition within 7 days of Oct 28 2026 for New York")
+	}
+	if delta != -1 {
+		t.Errorf("Expected fall-back delta -1h, got %v", delta)
+	}
+	expected := time.Date(2026, 11, 1, 6, 0, 0, 0, time.UTC)
+	if diff := at.Sub(expected); diff < -2*time.Minute || diff > 2*time.Minute {
+		t.Errorf("Expected transition near %v, got %v", expected, at)
+	}
+
+	// US DST starts Sunday Mar 8, 2026: spring forward +1h
+	from = time.Date(2026, 3, 4, 12, 0, 0, 0, time.UTC)
+	_, delta, ok = nextOffsetChange(ny, from, 7*24*time.Hour)
+	if !ok || delta != 1 {
+		t.Errorf("Expected spring-forward +1h within 7 days of Mar 4 2026, got ok=%v delta=%v", ok, delta)
+	}
+
+	// UTC never transitions
+	if _, _, ok := nextOffsetChange(time.UTC, from, 7*24*time.Hour); ok {
+		t.Error("Expected no offset change for UTC")
+	}
+
+	// Quiet period: mid-summer New York has no transition within a week
+	from = time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC)
+	if _, _, ok := nextOffsetChange(ny, from, 7*24*time.Hour); ok {
+		t.Error("Expected no offset change for New York in early July")
+	}
+}
+
 func TestOvernightWorkingHours(t *testing.T) {
 	// Ranges are built around the current hour so the assertions hold at
 	// any time of day while still exercising the wraparound branch
