@@ -37,9 +37,12 @@ func (m Model) renderTimeline() string {
 
 	// Render visible colleagues
 	for i := start; i < end; i++ {
-		if m.config.TimelineMode == "individual" {
+		switch {
+		case m.colleagues[i].InvalidTimezone:
+			b.WriteString(m.renderInvalidTimelineRow(m.colleagues[i]))
+		case m.config.TimelineMode == "individual":
 			b.WriteString(m.renderTimelineRow(i, m.colleagues[i]))
-		} else {
+		default:
 			b.WriteString(m.renderSharedTimelineRow(i, m.colleagues[i]))
 		}
 		b.WriteString("\n")
@@ -89,6 +92,20 @@ func (m Model) renderTimelineRow(index int, ct ColleagueTime) string {
 		bar)
 }
 
+// barCharForHour classifies an hour of a colleague's day into a bar
+// character. Configured work hours take precedence over sleep hours:
+// a night-shift colleague working 0-8 should render as working even
+// though the default sleep range (23-7) overlaps those hours.
+func barCharForHour(ct ColleagueTime, hour int) rune {
+	if !ct.IsWeekend && isInTimeRange(hour, ct.Colleague.GetWorkStart(), ct.Colleague.GetWorkEnd()) {
+		return '█' // Work hours
+	}
+	if isInTimeRange(hour, ct.Colleague.GetSleepStart(), ct.Colleague.GetSleepEnd()) {
+		return '░' // Sleep
+	}
+	return '▓' // Awake off-hours
+}
+
 // renderIndividualBar generates a timeline bar for individual mode
 func (m Model) renderIndividualBar(ct ColleagueTime, barWidth int) string {
 	bar := make([]rune, barWidth)
@@ -99,26 +116,14 @@ func (m Model) renderIndividualBar(ct ColleagueTime, barWidth int) string {
 	currentPosition := (currentHour + currentMinute/60.0) / 24.0 // 0.0 to 1.0
 	markerIndex := int(currentPosition * float64(barWidth))
 
-	// Get colleague's hours (using accessor methods for defaults)
-	workStart := ct.Colleague.GetWorkStart()
-	workEnd := ct.Colleague.GetWorkEnd()
-	sleepStart := ct.Colleague.GetSleepStart()
-	sleepEnd := ct.Colleague.GetSleepEnd()
-
 	// Build bar character by character
 	for i := range barWidth {
 		// Calculate which hour(s) this position represents
 		hourFraction := float64(i) / float64(barWidth)
 		hour := int(hourFraction * 24.0)
 
-		// Determine character based on time range (marker position will be colored differently)
-		if isInTimeRange(hour, sleepStart, sleepEnd) {
-			bar[i] = '░' // Sleep
-		} else if !ct.IsWeekend && isInTimeRange(hour, workStart, workEnd) {
-			bar[i] = '█' // Work hours
-		} else {
-			bar[i] = '▓' // Awake off-hours
-		}
+		// Marker position will be colored differently, not replaced
+		bar[i] = barCharForHour(ct, hour)
 	}
 
 	// Apply colors
@@ -294,6 +299,14 @@ func calculateOffsetHours(t time.Time, localTz *time.Location) float64 {
 	return float64(offsetSeconds) / 3600.0
 }
 
+// renderInvalidTimelineRow renders a warning row for a colleague whose
+// timezone failed to load (no time or bar can be computed)
+func (m Model) renderInvalidTimelineRow(ct ColleagueTime) string {
+	nameStr := truncateOrPad(ct.Colleague.Name, NameFieldWidth)
+	msg := fmt.Sprintf("⚠ invalid timezone %q — edit or delete", ct.Colleague.Timezone)
+	return fmt.Sprintf("%s %s", invalidStyle.Render(nameStr), invalidStyle.Render(msg))
+}
+
 // renderSharedTimelineRow renders a single colleague's row in shared timeline mode
 func (m Model) renderSharedTimelineRow(index int, ct ColleagueTime) string {
 	// Calculate offset hours
@@ -330,12 +343,6 @@ func (m Model) renderSharedBar(ct ColleagueTime, offsetHours float64, barWidth i
 	currentPosition := (currentHour + currentMinute/60.0) / 24.0
 	markerIndex := int(currentPosition * float64(barWidth))
 
-	// Get colleague's hours (using accessor methods for defaults)
-	workStart := ct.Colleague.GetWorkStart()
-	workEnd := ct.Colleague.GetWorkEnd()
-	sleepStart := ct.Colleague.GetSleepStart()
-	sleepEnd := ct.Colleague.GetSleepEnd()
-
 	// Build bar with shift applied
 	for i := range barWidth {
 		// Calculate which hour this position represents in local time
@@ -355,14 +362,7 @@ func (m Model) renderSharedBar(ct ColleagueTime, offsetHours float64, barWidth i
 
 		theirHour := int(theirHourFraction * 24.0)
 
-		// Determine character based on their local hour
-		if isInTimeRange(theirHour, sleepStart, sleepEnd) {
-			bar[i] = '░' // Sleep
-		} else if !ct.IsWeekend && isInTimeRange(theirHour, workStart, workEnd) {
-			bar[i] = '█' // Work
-		} else {
-			bar[i] = '▓' // Awake off
-		}
+		bar[i] = barCharForHour(ct, theirHour)
 	}
 
 	// Pass markerIndex to colorizer for proper styling (will highlight that position)

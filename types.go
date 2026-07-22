@@ -66,12 +66,13 @@ type Config struct {
 
 // ColleagueTime holds computed time information for display
 type ColleagueTime struct {
-	Colleague     Colleague
-	ConfigIndex   int // Index into Config.Colleagues; the display list may skip invalid entries
-	CurrentTime   time.Time
-	Offset        string // e.g., "+5h", "-8h", "same"
-	IsWorkingTime bool
-	IsWeekend     bool
+	Colleague       Colleague
+	ConfigIndex     int // Index into Config.Colleagues
+	CurrentTime     time.Time
+	Offset          string // e.g., "+5h", "-8h", "same"
+	IsWorkingTime   bool
+	IsWeekend       bool
+	InvalidTimezone bool // Timezone failed to load; time fields are zero
 }
 
 // InputMode represents the current input state

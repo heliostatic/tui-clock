@@ -315,6 +315,53 @@ func TestRenderSharedBarOffsetDirection(t *testing.T) {
 	}
 }
 
+// TestBarCharPrecedence tests that configured work hours win over
+// overlapping (default) sleep hours in the timeline bar
+func TestBarCharPrecedence(t *testing.T) {
+	nightShift := ColleagueTime{
+		Colleague: Colleague{
+			Name:      "Night Owl",
+			Timezone:  "UTC",
+			WorkStart: HourPtr(0),
+			WorkEnd:   HourPtr(8),
+			// Sleep unset: defaults to 23-7, overlapping the work range
+		},
+	}
+
+	for hour := 0; hour < 8; hour++ {
+		if got := barCharForHour(nightShift, hour); got != '█' {
+			t.Errorf("hour %d: got %q, want work block (configured work must win over default sleep)", hour, got)
+		}
+	}
+	// 23:00 is sleep (outside the work range)
+	if got := barCharForHour(nightShift, 23); got != '░' {
+		t.Errorf("hour 23: got %q, want sleep", got)
+	}
+	// Midday is off-hours
+	if got := barCharForHour(nightShift, 12); got != '▓' {
+		t.Errorf("hour 12: got %q, want off-hours", got)
+	}
+
+	// On weekends the work block disappears and sleep shows through
+	weekend := nightShift
+	weekend.IsWeekend = true
+	if got := barCharForHour(weekend, 2); got != '░' {
+		t.Errorf("weekend hour 2: got %q, want sleep", got)
+	}
+
+	// A default 9-17 worker is unchanged by the precedence flip
+	standard := ColleagueTime{Colleague: Colleague{Name: "Standard", Timezone: "UTC"}}
+	if got := barCharForHour(standard, 10); got != '█' {
+		t.Errorf("standard hour 10: got %q, want work", got)
+	}
+	if got := barCharForHour(standard, 2); got != '░' {
+		t.Errorf("standard hour 2: got %q, want sleep", got)
+	}
+	if got := barCharForHour(standard, 20); got != '▓' {
+		t.Errorf("standard hour 20: got %q, want off-hours", got)
+	}
+}
+
 // TestColleagueGetters tests the accessor methods with defaults
 func TestColleagueGetters(t *testing.T) {
 	t.Run("default values when unset", func(t *testing.T) {

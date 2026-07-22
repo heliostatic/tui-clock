@@ -6,8 +6,9 @@ import (
 )
 
 // ComputeColleagueTimes calculates current time and metadata for all
-// colleagues; entries with invalid timezones are skipped (their
-// ConfigIndex gap lets callers map results back to the config)
+// colleagues; entries whose timezone fails to load are kept in the
+// list flagged InvalidTimezone so the user can see, fix, or delete
+// them in the UI
 func ComputeColleagueTimes(colleagues []Colleague, localTz *time.Location) []ColleagueTime {
 	now := time.Now()
 	localNow := now.In(localTz)
@@ -17,7 +18,11 @@ func ComputeColleagueTimes(colleagues []Colleague, localTz *time.Location) []Col
 	for i, colleague := range colleagues {
 		loc, err := time.LoadLocation(colleague.Timezone)
 		if err != nil {
-			// Skip invalid timezones but continue processing others
+			result = append(result, ColleagueTime{
+				Colleague:       colleague,
+				ConfigIndex:     i,
+				InvalidTimezone: true,
+			})
 			continue
 		}
 

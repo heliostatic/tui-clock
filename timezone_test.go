@@ -105,18 +105,26 @@ func TestComputeColleagueTimes(t *testing.T) {
 
 	result := ComputeColleagueTimes(colleagues, localTz)
 
-	// Should skip invalid timezone, so only 3 results
-	if len(result) != 3 {
-		t.Fatalf("Expected 3 results (skipping invalid), got %d", len(result))
+	// Invalid entries are kept and flagged so the UI can surface them
+	if len(result) != 4 {
+		t.Fatalf("Expected 4 results (invalid entry kept), got %d", len(result))
+	}
+	if !result[2].InvalidTimezone {
+		t.Error("Expected Charlie's entry to be flagged InvalidTimezone")
+	}
+	if result[2].ConfigIndex != 2 {
+		t.Errorf("Expected Charlie's ConfigIndex 2, got %d", result[2].ConfigIndex)
 	}
 
-	// Entries after a skipped invalid timezone must keep their config index
+	// Valid entries around the invalid one must keep their config index
 	// so edit/delete operate on the right colleague
-	if result[1].ConfigIndex != 1 {
-		t.Errorf("Expected Bob's ConfigIndex 1, got %d", result[1].ConfigIndex)
+	if result[1].ConfigIndex != 1 || result[1].InvalidTimezone {
+		t.Errorf("Expected Bob valid with ConfigIndex 1, got index %d invalid=%v",
+			result[1].ConfigIndex, result[1].InvalidTimezone)
 	}
-	if result[2].ConfigIndex != 3 {
-		t.Errorf("Expected Dana's ConfigIndex 3 (after skipped entry), got %d", result[2].ConfigIndex)
+	if result[3].ConfigIndex != 3 || result[3].InvalidTimezone {
+		t.Errorf("Expected Dana valid with ConfigIndex 3, got index %d invalid=%v",
+			result[3].ConfigIndex, result[3].InvalidTimezone)
 	}
 
 	// Verify Alice's data

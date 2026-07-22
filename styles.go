@@ -29,24 +29,18 @@ type ColorScheme struct {
 
 var (
 	// Color palette
-	primaryColor   = lipgloss.Color("86")  // Cyan
-	secondaryColor = lipgloss.Color("212") // Pink
-	successColor   = lipgloss.Color("42")  // Green
-	warningColor   = lipgloss.Color("214") // Orange
-	errorColor     = lipgloss.Color("196") // Red
-	mutedColor     = lipgloss.Color("240") // Gray
-	weekendColor   = lipgloss.Color("141") // Purple
+	primaryColor = lipgloss.Color("86")  // Cyan
+	successColor = lipgloss.Color("42")  // Green
+	warningColor = lipgloss.Color("214") // Orange
+	errorColor   = lipgloss.Color("196") // Red
+	mutedColor   = lipgloss.Color("240") // Gray
+	weekendColor = lipgloss.Color("141") // Purple
 
 	// Header style
 	headerStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(primaryColor).
 			MarginBottom(1)
-
-	// Title style
-	titleStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(secondaryColor)
 
 	// Normal colleague row
 	rowStyle = lipgloss.NewStyle().
@@ -90,6 +84,10 @@ var (
 			Foreground(errorColor).
 			Bold(true).
 			MarginTop(1)
+
+	// Invalid colleague entry style (no margin, used inline in rows)
+	invalidStyle = lipgloss.NewStyle().
+			Foreground(errorColor)
 
 	// Input prompt style
 	promptStyle = lipgloss.NewStyle().
