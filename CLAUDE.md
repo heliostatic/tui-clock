@@ -283,7 +283,6 @@ func (m Model) calculateTimelineBarWidth() int
 Constants:
 - `MinBarWidth = 24` - Minimum (1 char per hour)
 - `IdealBarWidth = 48` - Target (2 chars per hour)
-- `MaxBarWidth = 72` - Maximum (3 chars per hour)
 
 Reserved space: NameFieldWidth (25) + TimeFieldWidth (12) + padding + brackets
 

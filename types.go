@@ -98,8 +98,7 @@ const (
 
 	// Timeline visualization constants
 	MinBarWidth    = 24 // Minimum bar width (1 char per hour)
-	IdealBarWidth  = 48 // Ideal bar width (2 chars per hour)
-	MaxBarWidth    = 72 // Maximum bar width (3 chars per hour)
+	IdealBarWidth  = 48 // Ideal and maximum bar width (2 chars per hour)
 	NameFieldWidth = 25 // Width for colleague name field
 	TimeFieldWidth = 12 // Width for time field
 )

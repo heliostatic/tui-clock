@@ -194,6 +194,10 @@ func (m Model) handleSearchTimezoneMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			} else {
 				m.exitToNormal()
 				m.cursor = len(m.colleagues) - 1
+				// Scroll the new entry into view (it's appended last)
+				if m.cursor >= m.scrollOffset+MaxVisible {
+					m.scrollOffset = m.cursor - MaxVisible + 1
+				}
 				m.activateSelection()
 			}
 		}
