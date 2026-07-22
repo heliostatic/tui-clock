@@ -362,6 +362,81 @@ func TestBarCharPrecedence(t *testing.T) {
 	}
 }
 
+// TestComputeSharedOverlap tests the team-overlap counting with fixed
+// zones so results are deterministic
+func TestComputeSharedOverlap(t *testing.T) {
+	// Monday 12:00 UTC; barWidth 24 makes position == local hour
+	instant := time.Date(2025, 1, 20, 12, 0, 0, 0, time.UTC)
+	remote := time.FixedZone("R+3", 3*3600)
+	const barWidth = 24
+
+	colleagues := []ColleagueTime{
+		{
+			// Works 9-17 local (UTC)
+			Colleague:   Colleague{Name: "A", Timezone: "UTC"},
+			CurrentTime: instant,
+		},
+		{
+			// Works 9-17 their time = 6-14 UTC
+			Colleague:   Colleague{Name: "B", Timezone: "R+3"},
+			CurrentTime: instant.In(remote),
+		},
+		{
+			// Ignored entirely
+			Colleague:       Colleague{Name: "C", Timezone: "Bad/Zone"},
+			InvalidTimezone: true,
+		},
+	}
+
+	counts, total := computeSharedOverlap(colleagues, time.UTC, barWidth)
+
+	if total != 2 {
+		t.Fatalf("total = %d, want 2 (invalid entry ignored)", total)
+	}
+	// Both working: 9-14 UTC
+	for _, h := range []int{9, 13} {
+		if counts[h] != 2 {
+			t.Errorf("counts[%d] = %d, want 2 (both working)", h, counts[h])
+		}
+	}
+	// Only B: 6-9 UTC; only A: 14-17 UTC
+	for _, h := range []int{7, 15} {
+		if counts[h] != 1 {
+			t.Errorf("counts[%d] = %d, want 1", h, counts[h])
+		}
+	}
+	// Nobody: evening
+	if counts[20] != 0 {
+		t.Errorf("counts[20] = %d, want 0", counts[20])
+	}
+}
+
+// TestSharedBarHour tests position-to-their-hour conversion including wraparound
+func TestSharedBarHour(t *testing.T) {
+	tests := []struct {
+		name        string
+		position    int
+		barWidth    int
+		offsetHours float64
+		expected    int
+	}{
+		{"no offset", 12, 24, 0, 12},
+		{"positive offset", 12, 24, 3, 15},
+		{"wraps past midnight", 22, 24, 5, 3},
+		{"negative offset", 2, 24, -5, 21},
+		{"half-hour offset", 12, 24, 5.5, 17},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := sharedBarHour(tt.position, tt.barWidth, tt.offsetHours); got != tt.expected {
+				t.Errorf("sharedBarHour(%d, %d, %v) = %d, want %d",
+					tt.position, tt.barWidth, tt.offsetHours, got, tt.expected)
+			}
+		})
+	}
+}
+
 // TestColleagueGetters tests the accessor methods with defaults
 func TestColleagueGetters(t *testing.T) {
 	t.Run("default values when unset", func(t *testing.T) {

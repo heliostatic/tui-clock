@@ -25,6 +25,7 @@ A terminal-based world clock for tracking time across multiple timezones. Perfec
 - Interactive editing (add/edit/delete colleagues)
 - Persistent YAML configuration
 - Timeline visualization with two modes
+- Team overlap row in shared timeline: see at a glance when everyone (or a majority) is working
 - Five color schemes (classic, dark, high-contrast, nord, solarized)
 
 ## Installation

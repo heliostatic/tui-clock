@@ -184,7 +184,10 @@ t normal mode • m individual • ↑/↓ scroll • c cycle colors • ? help 
    - Their activities are shifted by timezone offset to align with your day
    - Current time marker at YOUR local time (same position for everyone)
    - Hour labels represent hours in your timezone
-   - Use case: "Who's available RIGHT NOW? Who's working during my morning?"
+   - A "Team overlap" summary row (shown with 2+ valid colleagues) marks
+     where everyone is working (█, green), where a majority is (▓, yellow),
+     and how many are working right now
+   - Use case: "Who's available RIGHT NOW? When can we all meet?"
 
 **Key Insight**: Both modes use identical visual layout (Name + Time + Bar + Labels). Only the bar content and label interpretation differ.
 

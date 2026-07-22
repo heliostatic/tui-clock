@@ -51,6 +51,14 @@ func (m Model) renderTimeline() string {
 	// Show bottom scroll indicator
 	b.WriteString(bottomIndicator)
 
+	// Team overlap summary (shared mode, two or more valid colleagues)
+	if m.config.TimelineMode == "shared" {
+		if row := m.renderOverlapRow(); row != "" {
+			b.WriteString(row)
+			b.WriteString("\n")
+		}
+	}
+
 	// Add hour labels once at bottom for both modes
 	barWidth := m.calculateTimelineBarWidth()
 	labels := m.renderHourLabels(barWidth, NameFieldWidth+TimeFieldWidth+2)
@@ -230,6 +238,13 @@ func (m Model) renderTimelineLegend() string {
 	legend := fmt.Sprintf("\n%s sleep • %s off-hours • %s work • %s now",
 		sleep, awake, work, marker)
 
+	// Overlap row legend (shared mode only)
+	if m.config.TimelineMode == "shared" {
+		all := lipgloss.NewStyle().Foreground(scheme.Success).Render("█")
+		some := lipgloss.NewStyle().Foreground(scheme.Warning).Render("▓")
+		legend += fmt.Sprintf("\noverlap: %s everyone working • %s majority", all, some)
+	}
+
 	return footerStyle.Render(legend)
 }
 
@@ -345,28 +360,102 @@ func (m Model) renderSharedBar(ct ColleagueTime, offsetHours float64, barWidth i
 
 	// Build bar with shift applied
 	for i := range barWidth {
-		// Calculate which hour this position represents in local time
-		localHourFraction := float64(i) / float64(barWidth)
-
-		// Convert to their timezone hour by adding the offset
-		// If they're +3h ahead, when local is 12:00, they're at 15:00
-		theirHourFraction := localHourFraction + (offsetHours / 24.0)
-
-		// Wrap around if needed
-		for theirHourFraction < 0 {
-			theirHourFraction += 1.0
-		}
-		for theirHourFraction >= 1.0 {
-			theirHourFraction -= 1.0
-		}
-
-		theirHour := int(theirHourFraction * 24.0)
-
-		bar[i] = barCharForHour(ct, theirHour)
+		bar[i] = barCharForHour(ct, sharedBarHour(i, barWidth, offsetHours))
 	}
 
 	// Pass markerIndex to colorizer for proper styling (will highlight that position)
 	return m.colorizeBar(bar, ct, markerIndex)
+}
+
+// sharedBarHour converts a shared-mode bar position (which represents
+// local time) into the colleague's local hour by applying their offset,
+// wrapping at day boundaries. If they're +3h ahead, when local is
+// 12:00 they're at 15:00.
+func sharedBarHour(position, barWidth int, offsetHours float64) int {
+	theirHourFraction := float64(position)/float64(barWidth) + offsetHours/24.0
+
+	// Wrap around if needed
+	for theirHourFraction < 0 {
+		theirHourFraction += 1.0
+	}
+	for theirHourFraction >= 1.0 {
+		theirHourFraction -= 1.0
+	}
+
+	return int(theirHourFraction * 24.0)
+}
+
+// computeSharedOverlap returns, for each shared-bar position, how many
+// of the given colleagues are working at that moment of the local day,
+// plus the number of colleagues counted. Invalid-timezone entries are
+// ignored.
+func computeSharedOverlap(colleagues []ColleagueTime, localTz *time.Location, barWidth int) ([]int, int) {
+	counts := make([]int, barWidth)
+	total := 0
+
+	for _, ct := range colleagues {
+		if ct.InvalidTimezone {
+			continue
+		}
+		total++
+		offsetHours := calculateOffsetHours(ct.CurrentTime, localTz)
+		for i := range counts {
+			if barCharForHour(ct, sharedBarHour(i, barWidth, offsetHours)) == '█' {
+				counts[i]++
+			}
+		}
+	}
+
+	return counts, total
+}
+
+// renderOverlapRow renders the team-overlap summary row for shared
+// mode: where everyone is working, where a majority is, and how many
+// are working right now. Returns "" when fewer than two colleagues
+// have valid timezones.
+func (m Model) renderOverlapRow() string {
+	barWidth := m.calculateTimelineBarWidth()
+	counts, total := computeSharedOverlap(m.colleagues, m.localTimezone, barWidth)
+	if total < 2 {
+		return ""
+	}
+
+	// Current time marker at the local-time position, like every shared row
+	localTime := time.Now().In(m.localTimezone)
+	currentPosition := (float64(localTime.Hour()) + float64(localTime.Minute())/60.0) / 24.0
+	markerIndex := int(currentPosition * float64(barWidth))
+
+	scheme := getCurrentColorScheme(m.config.ColorScheme)
+	allStyle := lipgloss.NewStyle().Foreground(scheme.Success)
+	someStyle := lipgloss.NewStyle().Foreground(scheme.Warning)
+	noneStyle := lipgloss.NewStyle().Foreground(scheme.Muted)
+	markerStyle := lipgloss.NewStyle().Foreground(scheme.MarkerColor).Bold(true)
+
+	var bar strings.Builder
+	bar.WriteString("[")
+	for i, count := range counts {
+		var char string
+		var style lipgloss.Style
+		switch {
+		case count == total:
+			char, style = "█", allStyle
+		case count*2 >= total:
+			char, style = "▓", someStyle
+		default:
+			char, style = "░", noneStyle
+		}
+		if i == markerIndex {
+			style = markerStyle
+		}
+		bar.WriteString(style.Render(char))
+	}
+	bar.WriteString("]")
+
+	nameStr := truncateOrPad("Team overlap", NameFieldWidth)
+	nowStr := truncateOrPad(fmt.Sprintf("%d/%d now", counts[markerIndex], total), TimeFieldWidth)
+
+	// offHoursStyle: muted like the footer but without its top margin
+	return fmt.Sprintf("%s %s %s", offHoursStyle.Render(nameStr), nowStr, bar.String())
 }
 
 // formatOffsetString formats the offset hours as a string
