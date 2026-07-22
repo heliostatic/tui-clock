@@ -104,15 +104,28 @@ func (m Model) renderTimelineRow(index int, ct ColleagueTime) string {
 		bar)
 }
 
-// barCharForHour classifies an hour of a colleague's day into a bar
+// isInTimeRangeFrac is isInTimeRange for fractional hours: bar
+// positions fall between hour boundaries, and sub-hour timezone
+// offsets (India +5:30) shift ranges by fractions of an hour
+func isInTimeRangeFrac(hour float64, start, end int) bool {
+	s, e := float64(start), float64(end)
+	if s <= e {
+		// Normal range (e.g., 9-17)
+		return hour >= s && hour < e
+	}
+	// Wraparound range (e.g., 23-7)
+	return hour >= s || hour < e
+}
+
+// barCharForHour classifies a moment of a colleague's day into a bar
 // character. Configured work hours take precedence over sleep hours:
 // a night-shift colleague working 0-8 should render as working even
 // though the default sleep range (23-7) overlaps those hours.
-func barCharForHour(ct ColleagueTime, hour int) rune {
-	if !ct.IsWeekend && isInTimeRange(hour, ct.Colleague.GetWorkStart(), ct.Colleague.GetWorkEnd()) {
+func barCharForHour(ct ColleagueTime, hour float64) rune {
+	if !ct.IsWeekend && isInTimeRangeFrac(hour, ct.Colleague.GetWorkStart(), ct.Colleague.GetWorkEnd()) {
 		return '█' // Work hours
 	}
-	if isInTimeRange(hour, ct.Colleague.GetSleepStart(), ct.Colleague.GetSleepEnd()) {
+	if isInTimeRangeFrac(hour, ct.Colleague.GetSleepStart(), ct.Colleague.GetSleepEnd()) {
 		return '░' // Sleep
 	}
 	return '▓' // Awake off-hours
@@ -128,11 +141,10 @@ func (m Model) renderIndividualBar(ct ColleagueTime, barWidth int) string {
 	currentPosition := (currentHour + currentMinute/60.0) / 24.0 // 0.0 to 1.0
 	markerIndex := int(currentPosition * float64(barWidth))
 
-	// Build bar character by character
+	// Build bar character by character (fractional hours keep sub-hour
+	// boundaries accurate at 2 chars per hour)
 	for i := range barWidth {
-		// Calculate which hour(s) this position represents
-		hourFraction := float64(i) / float64(barWidth)
-		hour := int(hourFraction * 24.0)
+		hour := float64(i) / float64(barWidth) * 24.0
 
 		// Marker position will be colored differently, not replaced
 		bar[i] = barCharForHour(ct, hour)
@@ -378,19 +390,20 @@ func (m Model) renderSharedBar(ct ColleagueTime, offsetHours float64, barWidth i
 // sharedBarHour converts a shared-mode bar position (which represents
 // local time) into the colleague's local hour by applying their offset,
 // wrapping at day boundaries. If they're +3h ahead, when local is
-// 12:00 they're at 15:00.
-func sharedBarHour(position, barWidth int, offsetHours float64) int {
-	theirHourFraction := float64(position)/float64(barWidth) + offsetHours/24.0
+// 12:00 they're at 15:00. Fractional so half- and quarter-hour offsets
+// (India +5:30, Nepal +5:45) stay exact.
+func sharedBarHour(position, barWidth int, offsetHours float64) float64 {
+	hour := float64(position)/float64(barWidth)*24.0 + offsetHours
 
 	// Wrap around if needed
-	for theirHourFraction < 0 {
-		theirHourFraction += 1.0
+	for hour < 0 {
+		hour += 24.0
 	}
-	for theirHourFraction >= 1.0 {
-		theirHourFraction -= 1.0
+	for hour >= 24.0 {
+		hour -= 24.0
 	}
 
-	return int(theirHourFraction * 24.0)
+	return hour
 }
 
 // computeSharedOverlap returns, for each shared-bar position, how many
