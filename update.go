@@ -205,7 +205,7 @@ func (m Model) handleSearchTimezoneMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	default:
 		// Handle search navigation (up/down/typing)
-		m.handleSearchNavigation(msg.String())
+		m.handleSearchNavigation(msg)
 		return m, nil
 	}
 }
@@ -251,7 +251,7 @@ func (m Model) handleEditSearchTimezoneMode(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 
 	default:
 		// Handle search navigation (up/down/typing)
-		m.handleSearchNavigation(msg.String())
+		m.handleSearchNavigation(msg)
 		return m, nil
 	}
 }
