@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -32,6 +33,13 @@ func NewModel(config Config, configPath string) Model {
 		searchResults:      []SearchResult{},
 		searchCursor:       0,
 		searchScrollOffset: 0,
+	}
+
+	// Record the config file's mtime/size so hot-reload can tell
+	// external edits apart from our own writes
+	if info, err := os.Stat(configPath); err == nil {
+		m.configMtime = info.ModTime()
+		m.configSize = info.Size()
 	}
 
 	// Compute initial times
@@ -89,9 +97,73 @@ func (m *Model) updateColleagueTimes() {
 	m.colleagues = ComputeColleagueTimes(m.config.Colleagues, m.localTimezone)
 }
 
-// saveConfig saves the current config to file
+// saveConfig saves the current config to file and records the
+// resulting mtime/size so the hot-reload check doesn't re-read our own
+// write. Conflict semantics are whole-file last-writer-wins: an
+// external edit made while the app holds unsaved intent (e.g. an open
+// prompt) is overwritten by this save, same as before hot-reload
+// existed.
 func (m *Model) saveConfig() error {
-	return SaveConfig(m.configPath, m.config)
+	if err := SaveConfig(m.configPath, m.config); err != nil {
+		return err
+	}
+	if info, err := os.Stat(m.configPath); err == nil {
+		m.configMtime = info.ModTime()
+		m.configSize = info.Size()
+	}
+	return nil
+}
+
+// maybeReloadConfig picks up external edits to the config file. Called
+// every tick; a no-op unless the file's mtime or size changed. Reloads
+// are deferred while a modal edit flow is open (its editIndex points
+// into the config). This path never writes to the file: a torn or
+// invalid write is skipped and retried on a later tick, and a file
+// that vanishes mid-rename (editor save cycles) is left alone rather
+// than recreated.
+func (m *Model) maybeReloadConfig() {
+	switch m.inputMode {
+	case ModeNormal, ModeTimeline, ModeHelp:
+		// Safe to reload
+	default:
+		return
+	}
+
+	info, err := os.Stat(m.configPath)
+	if err != nil {
+		return
+	}
+	if info.ModTime().Equal(m.configMtime) && info.Size() == m.configSize {
+		return
+	}
+
+	// Read + parse directly: LoadConfig would create-and-save defaults
+	// if the file disappeared between the Stat above and the read
+	data, err := os.ReadFile(m.configPath)
+	if err != nil {
+		return
+	}
+	config, err := parseConfig(data)
+	if err != nil {
+		// Likely a partial editor write; state unchanged so the next
+		// tick retries
+		return
+	}
+
+	m.configMtime = info.ModTime()
+	m.configSize = info.Size()
+	m.config = config
+	m.updateColleagueTimes()
+
+	// The external edit may have reordered or replaced entries: drop
+	// the selection rather than leave it silently pointing at a
+	// different colleague (matches in-app delete behavior)
+	m.cursor = -1
+	m.selectionActive = false
+	maxScroll := max(len(m.colleagues)-MaxVisible, 0)
+	if m.scrollOffset > maxScroll {
+		m.scrollOffset = maxScroll
+	}
 }
 
 // applyWorkHours sets a colleague's work hours (nil = use defaults) and saves

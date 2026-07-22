@@ -115,6 +115,8 @@ const (
 type Model struct {
 	config          Config
 	configPath      string
+	configMtime     time.Time // Config file mtime at last load/save (for hot-reload)
+	configSize      int64     // Config file size at last load/save (catches same-mtime rewrites)
 	colleagues      []ColleagueTime
 	localTimezone   *time.Location
 	cursor          int           // Selected item index (or last known position)

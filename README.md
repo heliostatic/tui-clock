@@ -24,7 +24,7 @@ A terminal-based world clock for tracking time across multiple timezones. Perfec
 - Toggle between 12h/24h format
 - Interactive editing (add/edit/delete colleagues, `w` to set work/sleep hours)
 - DST warnings: rows show "⚡-1h Nov 1" when a colleague's offset changes within a week
-- Persistent YAML configuration
+- Persistent YAML configuration with hot-reload: external edits appear within a second, no restart needed (deferred while a prompt is open; on conflict, in-app changes win)
 - Timeline visualization with two modes
 - Team overlap row in shared timeline: see at a glance when everyone (or a majority) is working
 - Time scrubbing: `←/→` in timeline mode previews any hour of the past or future

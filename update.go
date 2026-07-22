@@ -19,6 +19,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case TickMsg:
+		m.maybeReloadConfig()
 		m.updateColleagueTimes()
 
 		// Auto-hide selection after inactivity timeout
@@ -415,7 +416,7 @@ func (m Model) handleTimelineMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Cycle through color schemes (auto-discover from registered schemes)
 		m.config.ColorScheme = GetNextColorScheme(m.config.ColorScheme)
 
-		if err := SaveConfig(m.configPath, m.config); err != nil {
+		if err := m.saveConfig(); err != nil {
 			m.errorMsg = err.Error()
 		}
 
@@ -427,7 +428,7 @@ func (m Model) handleTimelineMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.config.TimelineMode = "individual"
 		}
 
-		if err := SaveConfig(m.configPath, m.config); err != nil {
+		if err := m.saveConfig(); err != nil {
 			m.errorMsg = err.Error()
 		}
 
