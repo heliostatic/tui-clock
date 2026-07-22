@@ -124,8 +124,8 @@ func TestHandleSearchNavigation(t *testing.T) {
 	}{
 		{"Down arrow moves cursor", "down", true, true, 1},
 		{"Up arrow moves cursor", "up", true, true, 0},
-		{"j moves down", "j", true, true, 1},
-		{"k moves up", "k", true, true, 0},
+		{"j types into query, cursor unchanged", "j", true, true, 0},
+		{"k types into query, cursor unchanged", "k", true, true, 0},
 		{"Backspace handled", "backspace", true, false, -1},
 		{"Printable char handled", "a", true, false, -1},
 		{"Non-printable ignored", "ctrl+c", false, false, -1},
@@ -193,5 +193,14 @@ func TestHandleSearchNavigationTyping(t *testing.T) {
 	m.handleSearchNavigation("backspace")
 	if m.searchQuery != "lo" {
 		t.Errorf("Expected search query 'lo' after backspace, got '%s'", m.searchQuery)
+	}
+
+	// Letters used elsewhere for vim-style navigation must still be typeable
+	m.searchQuery = ""
+	for _, key := range []string{"t", "o", "k", "y", "o"} {
+		m.handleSearchNavigation(key)
+	}
+	if m.searchQuery != "tokyo" {
+		t.Errorf("Expected search query 'tokyo', got '%s'", m.searchQuery)
 	}
 }

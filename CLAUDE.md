@@ -120,7 +120,7 @@ go mod download
 **Search UX**
 - Type to filter results (no need to press Enter while searching)
 - Shows current time for each result to verify correctness
-- `↑/↓` or `k/j` to navigate results
+- `↑/↓` to navigate results (`k`/`j` are typeable characters, not navigation, while searching)
 - `Enter` to select
 - Scrolling for >10 results
 - Handles ambiguous abbreviations (CST = Chicago, Shanghai, or Havana)

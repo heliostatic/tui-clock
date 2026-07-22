@@ -48,11 +48,13 @@ func (m *Model) enterEditSearchMode() {
 
 // handleSearchNavigation handles up/down/typing in search mode
 // Returns true if the key was handled, false otherwise
+// Navigation is arrow-keys only: letters like k/j must remain typeable
+// since search is type-to-filter (e.g. "tokyo", "japan").
 func (m *Model) handleSearchNavigation(key string) bool {
 	const maxVisible = 10
 
 	switch key {
-	case "up", "k":
+	case "up":
 		if m.searchCursor > 0 {
 			m.searchCursor--
 			if m.searchCursor < m.searchScrollOffset {
@@ -61,7 +63,7 @@ func (m *Model) handleSearchNavigation(key string) bool {
 		}
 		return true
 
-	case "down", "j":
+	case "down":
 		if m.searchCursor < len(m.searchResults)-1 {
 			m.searchCursor++
 			if m.searchCursor >= m.searchScrollOffset+maxVisible {
