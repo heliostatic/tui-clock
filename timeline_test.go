@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -329,7 +330,7 @@ func TestBarCharPrecedence(t *testing.T) {
 	}
 
 	for hour := 0; hour < 8; hour++ {
-		if got := barCharForHour(nightShift, hour); got != '█' {
+		if got := barCharForHour(nightShift, float64(hour)); got != '█' {
 			t.Errorf("hour %d: got %q, want work block (configured work must win over default sleep)", hour, got)
 		}
 	}
@@ -359,6 +360,15 @@ func TestBarCharPrecedence(t *testing.T) {
 	}
 	if got := barCharForHour(standard, 20); got != '▓' {
 		t.Errorf("standard hour 20: got %q, want off-hours", got)
+	}
+
+	// Sub-hour boundaries: 8:59 their time is still work, 17:00 is not,
+	// and 8.5 (08:30) counts as pre-work off-hours for a 9-17 schedule
+	if got := barCharForHour(standard, 16.98); got != '█' {
+		t.Errorf("hour 16.98: got %q, want work", got)
+	}
+	if got := barCharForHour(standard, 8.5); got != '▓' {
+		t.Errorf("hour 8.5: got %q, want off-hours", got)
 	}
 }
 
@@ -444,26 +454,30 @@ func TestComputeSharedOverlap(t *testing.T) {
 	}
 }
 
-// TestSharedBarHour tests position-to-their-hour conversion including wraparound
+// TestSharedBarHour tests position-to-their-hour conversion including
+// wraparound and sub-hour offsets
 func TestSharedBarHour(t *testing.T) {
 	tests := []struct {
 		name        string
 		position    int
 		barWidth    int
 		offsetHours float64
-		expected    int
+		expected    float64
 	}{
 		{"no offset", 12, 24, 0, 12},
 		{"positive offset", 12, 24, 3, 15},
 		{"wraps past midnight", 22, 24, 5, 3},
 		{"negative offset", 2, 24, -5, 21},
-		{"half-hour offset", 12, 24, 5.5, 17},
+		{"half-hour offset kept exact", 12, 24, 5.5, 17.5},
+		{"quarter-hour offset kept exact", 0, 24, 5.75, 5.75},
+		{"half position at 2 chars per hour", 19, 48, 0, 9.5},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := sharedBarHour(tt.position, tt.barWidth, tt.offsetHours); got != tt.expected {
-				t.Errorf("sharedBarHour(%d, %d, %v) = %d, want %d",
+			got := sharedBarHour(tt.position, tt.barWidth, tt.offsetHours)
+			if math.Abs(got-tt.expected) > 1e-9 {
+				t.Errorf("sharedBarHour(%d, %d, %v) = %v, want %v",
 					tt.position, tt.barWidth, tt.offsetHours, got, tt.expected)
 			}
 		})

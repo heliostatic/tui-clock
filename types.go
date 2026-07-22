@@ -73,6 +73,11 @@ type ColleagueTime struct {
 	IsWorkingTime   bool
 	IsWeekend       bool
 	InvalidTimezone bool // Timezone failed to load; time fields are zero
+
+	// Upcoming DST transition within DSTLookahead, if any
+	DSTChangeAt   time.Time // In the colleague's timezone
+	DSTDeltaHours float64   // e.g., +1 (spring forward), -1 (fall back)
+	HasDSTChange  bool
 }
 
 // InputMode represents the current input state
@@ -84,6 +89,8 @@ const (
 	ModeSearchTimezone // New mode for searching/selecting timezone
 	ModeEditName
 	ModeEditSearchTimezone // Edit mode for timezone search
+	ModeEditWorkHours      // Editing selected colleague's work hours
+	ModeEditSleepHours     // Editing selected colleague's sleep hours
 	ModeHelp
 	ModeTimeline // Timeline visualization mode
 )
@@ -119,8 +126,14 @@ type Model struct {
 	nameInput       textinput.Model
 	editIndex       int    // Index of colleague being edited
 	errorMsg        string // Error message to display
-	width           int    // Terminal width
-	height          int    // Terminal height
+
+	// Staged hour edits from the 'w' flow; nothing is applied or saved
+	// until the final (sleep) step is confirmed, so Esc truly cancels
+	pendingWorkAction hourRangeAction
+	pendingWorkStart  int
+	pendingWorkEnd    int
+	width             int // Terminal width
+	height            int // Terminal height
 
 	// Timezone search state
 	searchQuery        string         // Current search query (what user typed)

@@ -72,6 +72,7 @@ go mod download
 - `↑/k, ↓/j`: Navigate
 - `a`: Add colleague (prompts for name, then interactive timezone search)
 - `e`: Edit selected colleague
+- `w`: Edit selected colleague's work/sleep hours (two-step prompt; blank keeps, "default" resets)
 - `d`: Delete selected colleague
 - `f`: Toggle time format (12h ↔ 24h)
 - `t`: Toggle timeline visualization mode
@@ -146,7 +147,7 @@ go mod download
   ◆ Charlie (Tokyo)   00:30:45  +9h  Tue, Jan 21
   ▼ 3 more below
 
-↑/k up • ↓/j down • a add • e edit • d delete • f format • ? help • q quit
+↑/k up • ↓/j down • a add • e edit • w hours • d delete • f format • t timeline • ? help • q quit
 ```
 
 **Timeline Mode:**
@@ -315,7 +316,7 @@ Reserved space: NameFieldWidth (25) + TimeFieldWidth (12) + padding + brackets
 
 **Testing Considerations:**
 
-When adding tests (see Phase 5.3 in plans/remaining-work.md):
+When adding tests:
 - Test `isInTimeRange()` with wraparound cases (23:00-07:00)
 - Test bar width calculations at various terminal sizes
 - Test individual bar generation (character distribution, marker position)

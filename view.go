@@ -89,6 +89,18 @@ func (m Model) View() string {
 		b.WriteString("\n")
 		b.WriteString(footerStyle.Render("Type to search • ↑/↓ navigate • Enter select • Esc cancel"))
 
+	case ModeEditWorkHours:
+		b.WriteString(promptStyle.Render(fmt.Sprintf("Edit '%s' - Work hours (start-end): ", m.editTargetName())))
+		b.WriteString(m.nameInput.View())
+		b.WriteString("\n")
+		b.WriteString(footerStyle.Render("Enter next • blank keep • \"default\" reset • Esc cancel"))
+
+	case ModeEditSleepHours:
+		b.WriteString(promptStyle.Render(fmt.Sprintf("Edit '%s' - Sleep hours (start-end): ", m.editTargetName())))
+		b.WriteString(m.nameInput.View())
+		b.WriteString("\n")
+		b.WriteString(footerStyle.Render("Enter apply both • blank keep • \"default\" reset • Esc cancel all"))
+
 	default:
 		// Normal mode - show colleagues
 		b.WriteString(m.renderColleagues())
@@ -107,6 +119,14 @@ func (m Model) View() string {
 	}
 
 	return b.String()
+}
+
+// editTargetName returns the name of the colleague being edited
+func (m Model) editTargetName() string {
+	if m.editIndex >= 0 && m.editIndex < len(m.config.Colleagues) {
+		return m.config.Colleagues[m.editIndex].Name
+	}
+	return ""
 }
 
 // renderColleagues renders the list of colleagues with scrolling
@@ -185,6 +205,18 @@ func (m Model) renderColleagueRow(index int, ct ColleagueTime) string {
 		dateStyle.Render(dateStr),
 	)
 
+	// Upcoming DST transition warning (within DSTLookahead). The date is
+	// taken an hour after the transition: for midnight fall-backs (e.g.
+	// Chile, 00:00 -> 23:00) the moment itself lands on the previous
+	// calendar day, but people name the change after the day being
+	// entered.
+	if ct.HasDSTChange {
+		warn := fmt.Sprintf("⚡%s %s",
+			formatOffsetString(ct.DSTDeltaHours),
+			ct.DSTChangeAt.Add(time.Hour).Format("Jan 2"))
+		line += "  " + offsetStyle.Render(warn)
+	}
+
 	return style.Render(line)
 }
 
@@ -260,6 +292,7 @@ func (m Model) renderFooter() string {
 		"↓/j down",
 		"a add",
 		"e edit",
+		"w hours",
 		"d delete",
 		"f format",
 		"t timeline",
@@ -280,7 +313,8 @@ NAVIGATION
 
 ACTIONS
   a            Add a new colleague
-  e            Edit selected colleague
+  e            Edit selected colleague (name and timezone)
+  w            Edit selected colleague's work/sleep hours
   d            Delete selected colleague
   f            Toggle time format (12h/24h)
   t            Timeline visualization mode
