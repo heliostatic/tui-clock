@@ -12,128 +12,141 @@ A terminal-based world clock application for tracking time across multiple timez
 ```bash
 go build -o tui-clock
 ./tui-clock
+./tui-clock -config /path/to/config.yaml   # custom config
+go run .                                    # run directly
 ```
 
-### Run directly
+### Verify (run all of these before every commit)
 ```bash
-go run .
+go build ./...
+go vet ./...
+gofmt -l .            # must print nothing
+golangci-lint run     # v2 config in .golangci.yml; must report 0 issues
+go test -race ./...
 ```
 
-### Run with custom config
+CI (`.github/workflows/ci.yml`) runs the same gate plus a build matrix on linux/macos/windows. Releases: pushing a `v*` tag runs goreleaser (`.goreleaser.yaml`) and publishes binaries. The IANA timezone DB is embedded via `time/tzdata`, so builds work on systems without one.
+
+## Development Practices
+
+These are the practices that have repeatedly caught real bugs here. Follow them for any non-trivial change.
+
+### 1. Drive the real app, don't just unit test
+
+Unit tests missed a bug where pasted input was silently dropped (Bubbletea batches fast keystrokes into one multi-rune message; tests fed single chars). Only driving the actual binary caught it. For any behavior change, launch the app in tmux and interact with it:
+
 ```bash
-./tui-clock -config /path/to/config.yaml
+tmux new-session -d -s app -x 120 -y 25 "env TZ=UTC ./tui-clock -config /tmp/test-config.yaml"
+timeout 10 bash -c 'until tmux capture-pane -t app -p | grep -q "World Clock"; do sleep 0.2; done'
+tmux send-keys -t app 'a'        # drive keys; send strings for text entry
+tmux capture-pane -t app -p      # read the screen
+tmux kill-session -t app
 ```
 
-### Install dependencies
-```bash
-go mod download
-```
+Craft config files for the scenario under test (invalid timezones, half-hour zones like Asia/Kolkata, CJK names, midnight work hours) and inspect the config file on disk afterwards — several bugs only showed up as wrong YAML, not wrong pixels.
+
+### 2. Adversarial review before merge
+
+Before merging a substantive PR, run an independent adversarial review of the diff whose explicit job is to break it: for each claimed fix, find inputs where the old bug still manifests or a new one appears. Require findings in the form file:line + concrete failure scenario + confidence (CONFIRMED = reproduced/proved, PLAUSIBLE = suspicion). This has caught, among others: a silent config regression for existing users, a code path that could overwrite the user's config with defaults during an editor's rename-save, and wrong dates for midnight DST transitions.
+
+### 3. Pin critical predicates with mutation checks
+
+If a test suite passes both with a predicate and with its plausible-but-wrong variant (e.g. `mtime.Equal` vs `!mtime.After`), the behavior is not actually tested. When a comparison or boundary matters, temporarily apply the wrong variant and confirm a test fails; if none does, write the test that kills the mutant (see `TestMaybeReloadConfigTriggersOnOlderMtime`, which uses a same-size edit so the size fallback can't mask the mtime comparison).
+
+### 4. Deterministic tests
+
+- Never depend on wall-clock "now" for assertions. Use fixed dates in known-DST periods (e.g. US transitions Mar 8 / Nov 1 2026), `time.FixedZone`, and `time.UTC`.
+- For file-watching tests, set mtimes explicitly with `os.Chtimes` — never rely on filesystem timestamp granularity.
+- When "now" is unavoidable (working-hours detection), construct ranges around `time.Now()`'s hour so the assertion holds at any time of day while still exercising the wraparound branch.
+
+### 5. Issues, commits, and merges
+
+- File a GitHub issue for every discovered bug, even if fixing it immediately; one commit per issue with `Fixes #N` so merges close them.
+- User-visible design changes (render precedence, selection behavior) get an issue describing the trade-off rather than a unilateral change, unless the owner has already authorized it.
+- PRs open as drafts; merge only when CI is green and the adversarial review's confirmed findings are fixed.
+- Report honestly: if something is unverified or deferred, the PR body says so.
+
+## Code Invariants
+
+Each of these encodes a fixed bug. Violating them reintroduces it.
+
+1. **Hour fields are `*int`; always use the accessors.** `Colleague.WorkStart/WorkEnd/SleepStart/SleepEnd` use nil = "default", so 0 (midnight) is a real value. Never read the raw fields — use `GetWorkStart()` etc.; construct values with `HourPtr(n)`. `parseConfig` migrates the legacy (0, 0) pair (old binaries' "use defaults" sentinel) back to nil; don't remove that migration while old configs exist.
+2. **Config mutations go through `ColleagueTime.ConfigIndex`, never the display cursor.** The display list can include invalid-timezone entries and is not guaranteed to align index-for-index with `Config.Colleagues` semantics; using the cursor once deleted the wrong colleague.
+3. **All config writes go through `m.saveConfig()`** — it stamps mtime/size so hot-reload doesn't re-read our own writes. Never call `SaveConfig` directly from update handlers. The reload path (`maybeReloadConfig`) must never write to the file: it reads + `parseConfig` (pure, no filesystem), specifically avoiding `LoadConfig`'s create-if-missing side effect, which once made a mid-rename editor save resurrect defaults.
+4. **Measure display width in cells, not bytes.** Use `truncateOrPad` (go-runewidth) for fixed-width fields; `len()` on names broke alignment for CJK/accented text and could split UTF-8 sequences.
+5. **Text-input modes must not steal typeable keys, and must accept batched runes.** Search navigation is arrow-keys only (`k`/`j` are letters in "tokyo"). Check `msg.Type == tea.KeyRunes || tea.KeySpace` and append `string(msg.Runes)` — Bubbletea coalesces fast typing/paste into one multi-rune message; a `len(key) == 1` check silently drops it.
+6. **Time ranges are half-open `[start, end)` with wraparound.** `isInTimeRange` (int hours, for "what is happening now") and `isInTimeRangeFrac` (fractional hours, for bar positions — keeps half/quarter-hour offsets exact). `start == end` is an empty range. In bars, configured **work hours take precedence over sleep** (`barCharForHour`) so night shifts render as working.
+7. **Offsets display exactly.** `formatOffsetString` uses shortest-exact-decimal ("+5.5h", "+5.75h"); `%.1f` once showed Nepal as "+5.8h". Offset math is `float64` seconds/3600 — integer division truncated half-hour zones.
+8. **Ticks align to wall-clock second boundaries** (`time.Until(now.Truncate(time.Second).Add(time.Second))`), otherwise the seconds display drifts.
+9. **Marker highlighting recolors the existing bar character** (cyan/bold); it never replaces it with `|` or anything else.
+10. **Use ColorScheme getters, never hardcoded colors**, and add new schemes only via the `colorSchemes` map — discovery, cycling (`GetNextColorScheme`), and validation (`ValidateColorScheme`) pick them up automatically.
 
 ## Architecture
 
 ### Core Components
 
 **Bubbletea Architecture (Elm-style)**
-- `types.go`: Core data structures (Model, Config, Colleague, ColleagueTime, InputMode)
-- `model.go`: Model initialization and business logic methods (Init, helper functions)
-- `update.go`: Update function handling all messages and keyboard input
-- `view.go`: View function rendering the UI with Lipgloss styling
+- `types.go`: Core data structures (Model, Config, Colleague, ColleagueTime, InputMode, constants)
+- `model.go`: Model init, config save/hot-reload, scrub helpers, business logic methods
+- `update.go`: Update function handling all messages and keyboard input, per-mode handlers
+- `view.go`: Normal-mode/help rendering with Lipgloss styling
+- `inputs.go`: Text-input construction, hour-range parsing, search navigation
 
 **Supporting Modules**
-- `config.go`: YAML configuration loading/saving with auto-creation of default config
-- `timeline.go`: Timeline visualization rendering (individual & shared modes, color schemes)
-- `timezone.go`: Timezone calculations (current time, offset, working hours detection)
-- `timezones_data.go`: Comprehensive database of 200+ cities worldwide with timezone info
-- `timezone_search.go`: Fuzzy search and smart name formatting for timezone lookup
-- `styles.go`: Lipgloss style definitions (colors, formatting, ColorScheme type)
-- `main.go`: Entry point with CLI flag parsing
+- `config.go`: YAML load/save; `parseConfig` (pure parse+defaults+migration) vs `LoadConfig` (adds create-if-missing, startup only)
+- `timeline.go`: Timeline rendering (both modes, overlap row, hour labels, bar math)
+- `timezone.go`: Time computation per colleague, offsets, working hours, DST transition detection
+- `timezones_data.go`: Database of 200+ cities with IANA zones, abbreviations, popularity
+- `timezone_search.go`: Fuzzy search scoring and display-name formatting
+- `styles.go`: Lipgloss styles, ColorScheme type, five built-in schemes
+- `main.go`: Entry point, CLI flags, tzdata embed
 
 ### Data Flow
 
-1. **Initialization**: Load config from `~/.config/tui-clock/config.yaml` (or custom path via `-config` flag)
-2. **Auto-detection**: Local timezone detected automatically using `time.Now().Location()`
-3. **Tick Loop**: Every second, `TickMsg` triggers time recalculation for all colleagues, plus a config hot-reload check (`maybeReloadConfig`): external file edits are picked up by mtime/size comparison, deferred while a modal edit flow is open, and torn/invalid/vanished files are retried on later ticks — the reload path never writes to the file. Conflict semantics are whole-file last-writer-wins: an in-app save overwrites any external edit made since the last reload
-4. **State Updates**: User input modifies model state, changes are persisted to config file
-5. **Rendering**: View function renders current state with scrolling support (max 8 visible)
+1. **Initialization**: Load config from `~/.config/tui-clock/config.yaml` (or `-config` path); local timezone from `time.Now().Location()`
+2. **Tick Loop**: Every second `TickMsg` recomputes all colleague times and runs the config hot-reload check (`maybeReloadConfig`): external edits are detected by mtime/size, deferred while a modal flow is open, and torn/invalid/vanished files are retried on later ticks. Conflict semantics are whole-file last-writer-wins: an in-app save overwrites external edits made since the last reload
+3. **State Updates**: Keyboard input mutates the model; config changes persist immediately via `saveConfig`
+4. **Rendering**: View renders current state; lists scroll at >8 colleagues (>10 search results)
 
 ### Key Features
 
 **Display**
-- Real-time clocks updating every second
-- Time offset from local timezone (+5h, -8h)
-- Working hours indicator: ● (working), ○ (off-hours), ◆ (weekend)
-- Date and day of week display
-- Configurable 12h/24h time format
-- Scrolling for >8 colleagues
-- Timeline visualization mode with individual and shared views
-- Five color schemes with true color and adaptive light/dark support
+- Real-time clocks; offset from local time ("+5.5h" for half-hour zones)
+- Status dot: ● working, ○ off-hours, ◆ weekend, ⚠ invalid timezone
+- DST warning ("⚡-1h Nov 1") when a colleague's offset changes within 7 days
+- 12h/24h format; five color schemes (classic, dark, high-contrast, nord, solarized) with true color and adaptive light/dark support
+- Timeline mode: individual and shared views, team overlap row, time scrubbing
 
 **Interactions**
-- `↑/k, ↓/j`: Navigate
-- `a`: Add colleague (prompts for name, then interactive timezone search)
-- `e`: Edit selected colleague
-- `w`: Edit selected colleague's work/sleep hours (two-step prompt; blank keeps, "default" resets)
+- `↑/k, ↓/j`: Navigate (selection auto-hides after 3s; first keypress reactivates it)
+- `a`: Add colleague (name prompt, then type-to-filter timezone search)
+- `e`: Edit selected colleague's name and timezone
+- `w`: Edit selected colleague's work/sleep hours (two-step prompt; staged, applied only on final confirm; blank keeps, `default` resets, `9-24` = until midnight)
 - `d`: Delete selected colleague
-- `f`: Toggle time format (12h ↔ 24h)
-- `t`: Toggle timeline visualization mode
-- `m`: Toggle timeline mode (individual ↔ shared) - only in timeline view
-- `←/→`: Scrub time ±1h to preview future/past (Esc returns to now) - only in timeline view
-- `c`: Cycle color schemes - only in timeline view
-- `?`: Help screen
-- `q/Esc`: Quit
+- `f`: Toggle time format
+- `t`: Toggle timeline mode
+- `m` / `c`: Toggle individual↔shared / cycle color scheme (timeline only)
+- `←/→`: Scrub time ±1h; Esc returns to now, second Esc exits (timeline only)
+- `?`: Help; `q`/`Esc`: Quit
+- Broken config entries stay visible as red `⚠ invalid timezone` rows and can be fixed with `e` or removed with `d`
 
 **Configuration**
-- Config file: `~/.config/tui-clock/config.yaml`
-- Auto-created with example colleagues on first run
-- Changes saved immediately on add/edit/delete/format toggle/color scheme change/timeline mode toggle
-- `time_format`: "12h" or "24h"
-- `color_scheme`: "classic", "dark", "high-contrast", "nord", or "solarized"
-- `timeline_mode`: "individual" or "shared"
-- `location_display_format`: "auto", "city", "timezone", or "abbreviation"
-- Colleague fields: `work_start`, `work_end`, `sleep_start`, `sleep_end` (all optional, defaults provided)
-- See `config.example.yaml` for structure
+- `~/.config/tui-clock/config.yaml`, auto-created on first run, hot-reloaded on external edits
+- `time_format`, `color_scheme`, `timeline_mode`, `location_display_format`
+- Colleague fields `work_start`/`work_end`/`sleep_start`/`sleep_end`: optional, omitted = defaults (9-17 work, 23-7 sleep), 0 = midnight
+- See `config.example.yaml`
 
-### Timezone Search Feature
+### Timezone Search
 
-**Comprehensive City Database**
-- 200+ cities worldwide including:
-  - All 50 US state capitals + 50+ major US cities
-  - Major cities across Canada, Mexico, Central/South America
-  - European cities (Western, Northern, Eastern regions)
-  - Middle East, Africa, Asia (East, Southeast, South), Oceania
-
-**Smart Search**
-- Search by city name: "new york", "london", "tokyo"
-- Search by abbreviation: "cst", "est", "pst" (shows all matching cities)
-- Search by country: "japan", "germany", "australia"
-- Search by state: "nebraska", "california"
-- Fuzzy matching with real-time filtering
-- Results ranked by popularity and relevance
-
-**Auto-Append Location**
-- Configurable via `location_display_format` in config:
-  - `"auto"` (default): Append city if user searched by city, abbreviation if searched by abbrev
-  - `"city"`: Always append city name
-  - `"timezone"`: Always append IANA timezone
-  - `"abbreviation"`: Always append abbreviation (EST, PST, etc.)
-- Example: Search "london" → adds "Alice (London)"
-- Example: Search "est" → adds "Alice (EST)"
-
-**Search UX**
-- Type to filter results (no need to press Enter while searching)
-- Shows current time for each result to verify correctness
-- `↑/↓` to navigate results (`k`/`j` are typeable characters, not navigation, while searching)
-- `Enter` to select
-- Scrolling for >10 results
-- Handles ambiguous abbreviations (CST = Chicago, Shanghai, or Havana)
+- 200+ cities searchable by city, country, US state, or abbreviation (ambiguous abbreviations like CST list all matches); fuzzy, ranked by popularity and match quality
+- Appended location label controlled by `location_display_format`: `auto` (city or abbreviation depending on what was searched), `city`, `timezone`, `abbreviation`
+- Type to filter; `↑/↓` navigate (letters including `k`/`j` go to the query); Enter selects; each result shows its current time
 
 ### Timezone Handling
 
-- Uses Go's `time.LoadLocation()` with IANA timezone database
-- Validation on add/edit prevents invalid timezone strings
-- Working hours: Configurable per-colleague (default 9am-5pm)
-- Weekend detection: Saturday/Sunday shown in purple
-- Offset calculation: Accounts for DST automatically
+- `time.LoadLocation` against the embedded IANA database; validation on add/edit
+- Offsets recomputed every tick, DST-aware; upcoming transitions found by `nextOffsetChange` (binary search on zone offset, ~530ns, runs per colleague per tick)
+- Weekend = Saturday/Sunday in the colleague's zone
 
 ### UI Layout
 
@@ -142,191 +155,50 @@ go mod download
 🌍 World Clock - Local Time: 15:30:45 (Mon, Jan 20)
 
   ▲ 2 more above
-▶ ● Alice (New York)  10:30:45  -5h  Mon, Jan 20
+▶ ● Alice (New York)  10:30:45  -5h  Mon, Jan 20  ⚡-1h Nov 1
   ○ Bob (London)      15:30:45  same  Mon, Jan 20
-  ◆ Charlie (Tokyo)   00:30:45  +9h  Tue, Jan 21
+  ⚠ Carol  invalid timezone "Typo/Zone" — edit or delete
   ▼ 3 more below
 
 ↑/k up • ↓/j down • a add • e edit • w hours • d delete • f format • t timeline • ? help • q quit
 ```
 
-**Timeline Mode:**
+**Timeline Mode (shared, with overlap row):**
 ```
-🌍 Timeline View - Local Time: 15:30:45 (Mon, Jan 20)
+🌍 Timeline View - Local Time: 15:30:45 (Mon, Jan 20)  ⏩ scrubbed +2h
 
-Katherine (EST)      14:49:34  [░░░▓▓▓████████████|█████▓▓▓░░░░░]
-Austin (Lincoln)     13:49:34  [░░░▓▓▓█████████████|████▓▓▓░░░░░]
-Ben (EST)            14:49:34  [░░░▓▓▓████████████|█████▓▓▓░░░░░]
-                                0    6    12   18   24
+Alice (New York)          10:30:45     [░░░░░░░░░░░░▓▓▓▓████████████████▓▓▓▓▓▓▓▓▓▓▓▓░░░░]
+Ravi (Kolkata)            02:00:45     [░░░▓▓▓▓████████████████▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░░]
+Team overlap              1/2 now      [░░░░░░░▓▓▓▓▓███████████▓▓▓▓▓░░░░░░░░░░░░░░░░░░░░]
+
+                                       [0           6          12          18         24]
 
 ░ sleep • ▓ off-hours • █ work • █ now
+overlap: █ everyone working • ▓ majority
 
-t normal mode • m individual • ↑/↓ scroll • c cycle colors • ? help • q quit
+t normal mode • m shared • ↑/↓ scroll • ←/→ scrub time • c cycle colors • ? help • q quit
 ```
 
-### Timeline Visualization Architecture
+The `⏩ scrubbed` header segment and the `esc back to now` footer hint appear only while scrubbed. The overlap row and its legend line appear only in shared mode with 2+ valid colleagues.
 
-**Purpose**: Visualize each colleague's full 24-hour day with sleep/work/off-hours blocks and current time marker.
+## Timeline Internals
 
-**Files**:
-- `timeline.go` (~500 lines) - All timeline rendering logic
-- `styles.go` - ColorScheme type and three built-in schemes
-- `types.go` - ModeTimeline enum, timeline constants, Colleague accessor methods
+**Bar characters**: `░` sleep, `▓` off-hours awake, `█` work. Classified by `barCharForHour(ct, hour float64)` — work wins over overlapping sleep; weekends drop work blocks. Positions map to fractional hours (`float64(i)/barWidth*24`), which keeps half/quarter-hour offsets exact at 2 chars/hour.
 
-**Two Visualization Modes:**
+**Modes**: Individual bars are 0-24 in the colleague's zone (marker at their local time). Shared bars are 0-24 in the viewer's zone with the colleague's schedule shifted via `sharedBarHour(position, barWidth, offsetHours) float64` (marker at viewer's local time, same column for everyone). Both render Name + Time + Bar with shared hour labels at the bottom.
 
-1. **Individual Mode** (`timeline_mode: "individual"`):
-   - Each bar represents 0-24 hours in that person's local timezone
-   - Current time marker highlights their local time position
-   - Hour labels (0, 6, 12, 18, 24) represent hours in their timezone
-   - Use case: "What time is it for them right now? What are they doing?"
+**Overlap row** (`renderOverlapRow`): `computeSharedOverlap` counts, per bar position, how many valid colleagues' `barCharForHour` is work. `█` (Success) where count == total, `▓` (Warning) where count ≥ half, `░` (Muted) otherwise; time field shows "N/M now" at the marker.
 
-2. **Shared Mode** (`timeline_mode: "shared"`):
-   - Each bar represents 0-24 hours in YOUR (local) timezone
-   - Their activities are shifted by timezone offset to align with your day
-   - Current time marker at YOUR local time (same position for everyone)
-   - Hour labels represent hours in your timezone
-   - A "Team overlap" summary row (shown with 2+ valid colleagues) marks
-     where everyone is working (█, green), where a majority is (▓, yellow),
-     and how many are working right now
-   - Use case: "Who's available RIGHT NOW? When can we all meet?"
+**Scrubbing**: `Model.timeOffset` shifts a virtual now. `displayNow()` gives the shifted local time; `scrubbed(ct)` shifts a `ColleagueTime` and recomputes `IsWeekend`/`IsWorkingTime` (scrubbing across midnight changes the weekday). All timeline rendering goes through these; leaving timeline mode resets the offset.
 
-**Key Insight**: Both modes use identical visual layout (Name + Time + Bar + Labels). Only the bar content and label interpretation differ.
+**Bar width**: `calculateTimelineBarWidth()` adapts to terminal width between `MinBarWidth` (24, 1 char/hour) and `IdealBarWidth` (48, 2 chars/hour — also the maximum), minus `NameFieldWidth` (25) + `TimeFieldWidth` (12) + padding.
 
-**Bar Generation:**
+**Color schemes**: defined solely in the `colorSchemes` map in styles.go; each provides bar colors (`SleepColor`, `AwakeOffColor`, `WorkColor`, `MarkerColor`, `WeekendTint`) and UI colors (`Primary`…`Muted`) as `lipgloss.TerminalColor` (plain or `AdaptiveColor`). Nord and Solarized are adaptive light/dark.
 
-Characters used:
-- `░` - Sleep hours (default: 23:00-07:00, configurable per colleague)
-- `▓` - Off-hours (awake but not working)
-- `█` - Work hours (default: 09:00-17:00 weekdays, configurable per colleague)
+## Test Suite Map
 
-Current time marker: Highlighted character (cyan/bold) instead of replacement.
-
-**Key Functions:**
-
-**Orchestration:**
-```go
-// Main entry point - handles both modes
-func (m Model) renderTimeline() string
-```
-
-**Individual Mode:**
-```go
-// Renders one person's row (name + time + bar)
-func (m Model) renderTimelineRow(index int, ct ColleagueTime) string
-
-// Generates their 24-hour bar (0-24 in their timezone)
-func (m Model) renderIndividualBar(ct ColleagueTime, barWidth int) string
-```
-
-**Shared Mode:**
-```go
-// Renders one person's row (same format as individual)
-func (m Model) renderSharedTimelineRow(index int, ct ColleagueTime) string
-
-// Generates bar shifted by offset (0-24 in local timezone)
-func (m Model) renderSharedBar(ct ColleagueTime, offsetHours float64, barWidth int) string
-```
-
-**Shared Utilities:**
-```go
-// Applies color scheme to bar characters
-func (m Model) colorizeBar(bar []rune, ct ColleagueTime, markerIndex int) string
-
-// Renders hour labels (0, 6, 12, 18, 24) with precise alignment
-func (m Model) renderHourLabels(barWidth int, leftPadding int) string
-
-// Checks if hour falls in range (handles wraparound like 23:00-07:00)
-func isInTimeRange(hour, start, end int) bool
-
-// Colleague accessor methods with defaults (DRY principle)
-func (c Colleague) GetWorkStart() int
-func (c Colleague) GetWorkEnd() int
-func (c Colleague) GetSleepStart() int
-func (c Colleague) GetSleepEnd() int
-```
-
-**Color Schemes:**
-
-Five built-in schemes defined in `colorSchemes` map:
-- **Classic**: Vibrant true colors (#00d7ff cyan, #00d787 green, #af87d7 purple) - default
-- **Dark**: Muted night-mode true colors for low-light environments
-- **High Contrast**: Accessibility-focused using ANSI colors for maximum compatibility
-- **Nord**: Nordic-inspired theme using official Nord palette with adaptive backgrounds (https://nordtheme.com)
-- **Solarized**: Precision colors using official Solarized palette with adaptive light/dark support (https://github.com/altercation/solarized)
-
-**True Color Support**: Classic, Dark, Nord, and Solarized use 24-bit hex color values (e.g., `#00d7ff`) for accurate color reproduction.
-
-**Adaptive Color Support**: Nord and Solarized use `lipgloss.AdaptiveColor` for automatic light/dark terminal background detection:
-- Adaptive schemes adjust background tones based on terminal theme
-- Accent colors remain vibrant and consistent across terminal themes
-- Single scheme works beautifully in both light and dark terminals
-
-**Phase 1 System** (Implemented): Self-discovering color scheme system
-- Add new schemes by adding to `colorSchemes` map only (one place)
-- `GetAvailableColorSchemes()` - Auto-discovers all registered schemes
-- `GetNextColorScheme()` - Cycles alphabetically through all schemes
-- `ValidateColorScheme()` - Validates scheme completeness (checks for nil values)
-
-Each ColorScheme defines (using `lipgloss.TerminalColor` interface):
-- `SleepColor`, `AwakeOffColor`, `WorkColor` - Bar character colors (can be Color or AdaptiveColor)
-- `MarkerColor` - Current time highlight color
-- `WeekendTint` - Work block color on weekends
-- `Primary`, `Secondary`, `Success`, `Warning`, `Error`, `Muted` - UI colors
-
-The `TerminalColor` interface supports both:
-- `lipgloss.Color("#hex-value")` - Simple true color
-- `lipgloss.AdaptiveColor{Light: "#hex", Dark: "#hex"}` - Light/dark adaptive color
-
-**Bar Width Calculation:**
-
-Adaptive based on terminal width:
-```go
-func (m Model) calculateTimelineBarWidth() int
-```
-
-Constants:
-- `MinBarWidth = 24` - Minimum (1 char per hour)
-- `IdealBarWidth = 48` - Target (2 chars per hour)
-
-Reserved space: NameFieldWidth (25) + TimeFieldWidth (12) + padding + brackets
-
-**Critical Implementation Details:**
-
-1. **Offset Direction** (shared mode):
-   ```go
-   // CORRECT: If they're +3h ahead, add offset to shift right
-   theirHourFraction := localHourFraction + (offsetHours / 24.0)
-   ```
-
-2. **Marker Highlighting**:
-   - Keep original character (░, █, ▓)
-   - Apply cyan/bold styling to that position
-   - Do NOT replace with '|' or other characters
-
-3. **Hour Label Alignment**:
-   - Character-by-character positioning for multi-char labels
-   - Center labels around target hour position
-   - Account for bracket in position calculations
-
-4. **Unified Layout**:
-   - Both modes render: Name + Time + Bar
-   - Hour labels always at bottom (not per row)
-   - Same scroll indicators, same styling
-
-**Testing Considerations:**
-
-When adding tests:
-- Test `isInTimeRange()` with wraparound cases (23:00-07:00)
-- Test bar width calculations at various terminal sizes
-- Test individual bar generation (character distribution, marker position)
-- Test shared bar generation (offset shifting, wraparound at day boundaries)
-- Test color scheme validity and cycling
-- Integration tests for complete timeline rendering
-
-**Common Patterns:**
-
-- Use `truncateOrPad()` for fixed-width fields
-- Use `isInTimeRange()` for hour checks (handles wraparound automatically)
-- Use ColorScheme getters for colors, never hardcode
-- Use Colleague accessor methods for work/sleep hours (provides defaults)
+- `inputs_test.go`: hour-range parsing, staged `w`-flow semantics (Esc cancels everything, blank Enter-Enter is a no-op), multi-rune paste handling, search navigation
+- `timezone_test.go`: offsets (incl. +5.5h), ConfigIndex/invalid-entry flagging, overnight working hours, DST transition detection against fixed 2026 dates
+- `timeline_test.go`: range checks incl. wraparound and fractional boundaries, bar precedence, shared-bar hour math, overlap counting with fixed zones, scrub flag recomputation, cell-width truncation (CJK/accented)
+- `config_test.go`: defaults, round-trips, midnight preservation, legacy 0/0 sentinel migration
+- `reload_test.go`: hot-reload — external pickup, own-save suppression, modal deferral, torn writes, deleted-file non-resurrection, same-size older-mtime (mutation pin), same-mtime size change, selection reset
