@@ -1,6 +1,21 @@
+# Keep in sync with the golangci-lint version in .github/workflows/ci.yml
+golangci_version := "v2.5.0"
+
 # List available recipes
 default:
     @just --list
+
+# Install dev tools (golangci-lint pinned to the CI version) and dependencies
+bootstrap:
+    go mod download
+    go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{golangci_version}}
+    @echo ""
+    @echo "Installed golangci-lint {{golangci_version}} to $(go env GOPATH)/bin — make sure that's on your PATH."
+    @echo "Optional, for 'just screenshots': go install github.com/charmbracelet/vhs@latest (also needs ttyd and ffmpeg)."
+
+# (hidden) Fail with a pointer to bootstrap when golangci-lint is missing
+_ensure-golangci:
+    @command -v golangci-lint >/dev/null 2>&1 || { echo "golangci-lint not found — run 'just bootstrap' first"; exit 1; }
 
 # Build the binary
 build:
@@ -11,7 +26,7 @@ run: build
     ./tui-clock
 
 # Full verification gate — identical to CI; run before every commit
-check:
+check: _ensure-golangci
     go build ./...
     go vet ./...
     @test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
@@ -34,7 +49,7 @@ coverage:
     @echo "HTML report: go tool cover -html=coverage.out"
 
 # Run golangci-lint
-lint:
+lint: _ensure-golangci
     golangci-lint run
 
 # Format code with gofmt
