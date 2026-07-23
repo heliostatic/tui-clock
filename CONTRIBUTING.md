@@ -22,15 +22,14 @@ We welcome contributions! This guide will help you get started.
    cd tui-clock
    ```
 
-3. **Install dependencies:**
+3. **Install dependencies and dev tools** (downloads modules and installs golangci-lint at the CI-pinned version):
    ```bash
-   go mod download
+   just bootstrap
    ```
 
 4. **Verify your setup:**
    ```bash
-   just build
-   just test
+   just check
    ```
 
 ## Development Workflow
@@ -39,6 +38,7 @@ We use a [`justfile`](https://github.com/casey/just) for common development task
 
 ```bash
 just                # List all available recipes
+just bootstrap      # Install dev tools (golangci-lint) and dependencies
 just build          # Build the binary
 just check          # Full verification gate (identical to CI)
 just test           # Run tests (race detector on)

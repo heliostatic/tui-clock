@@ -149,6 +149,7 @@ See `config.example.yaml` for a full example.
 ## Development
 
 ```bash
+just bootstrap      # One-time: install dev tools (golangci-lint) and dependencies
 just                # List all available recipes
 just build          # Build the binary
 just check          # Full verification gate (identical to CI)
