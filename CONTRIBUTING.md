@@ -29,25 +29,28 @@ We welcome contributions! This guide will help you get started.
 
 4. **Verify your setup:**
    ```bash
-   make build
-   make test
+   just build
+   just test
    ```
 
 ## Development Workflow
 
-We use a `Makefile` for common development tasks:
+We use a [`justfile`](https://github.com/casey/just) for common development tasks (install `just` via your package manager, e.g. `brew install just`):
 
 ```bash
-make help           # Show all available commands
-make build          # Build the binary
-make test           # Run tests
-make test-verbose   # Run tests with verbose output
-make test-coverage  # Run tests with coverage report
-make lint           # Run golangci-lint
-make fmt            # Format code with gofmt
-make clean          # Remove build artifacts
-make run            # Build and run the application
+just                # List all available recipes
+just build          # Build the binary
+just check          # Full verification gate (identical to CI)
+just test           # Run tests (race detector on)
+just test-verbose   # Run tests with verbose output
+just coverage       # Run tests with coverage report
+just lint           # Run golangci-lint
+just fmt            # Format code with gofmt
+just clean          # Remove build artifacts
+just run            # Build and run the application
 ```
+
+If you don't have `just`, every recipe is a thin wrapper over standard Go commands — see the justfile or the Verify section in CLAUDE.md.
 
 ### Making Changes
 
@@ -63,18 +66,18 @@ make run            # Build and run the application
 
 3. **Format and lint your code:**
    ```bash
-   make fmt
-   make lint
+   just fmt
+   just lint
    ```
 
 4. **Run tests:**
    ```bash
-   make test-verbose
+   just test-verbose
    ```
 
 5. **Test manually:**
    ```bash
-   make run
+   just run
    ```
 
 ### Updating Screenshots
@@ -88,7 +91,7 @@ When making UI changes that affect the screenshots in the README:
 
 2. **Regenerate screenshots:**
    ```bash
-   make screenshots
+   just screenshots
    ```
 
 3. **Verify screenshots** look correct in `assets/`
@@ -170,18 +173,12 @@ func TestYourFunction(t *testing.T) {
 
 ## Submitting Changes
 
-1. **Ensure all tests pass:**
+1. **Run the full verification gate:**
    ```bash
-   make test
+   just check
    ```
 
-2. **Format and lint your code:**
-   ```bash
-   make fmt
-   make lint
-   ```
-
-3. **Commit with a clear message:**
+2. **Commit with a clear message:**
    ```bash
    git commit -m "Add feature: description of what you did"
    ```
@@ -191,12 +188,12 @@ func TestYourFunction(t *testing.T) {
    - Be concise but descriptive
    - Explain *why* not just *what*
 
-4. **Push to your fork:**
+3. **Push to your fork:**
    ```bash
    git push origin feature/your-feature-name
    ```
 
-5. **Open a Pull Request** with:
+4. **Open a Pull Request** with:
    - Clear description of changes
    - Why the change is needed
    - Any breaking changes
