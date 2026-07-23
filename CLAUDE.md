@@ -25,6 +25,8 @@ golangci-lint run     # v2 config in .golangci.yml; must report 0 issues
 go test -race ./...
 ```
 
+`just check` runs this exact gate (see the justfile for all recipes: build, run, test, coverage, fmt, screenshots, …).
+
 CI (`.github/workflows/ci.yml`) runs the same gate plus a build matrix on linux/macos/windows. Releases: pushing a `v*` tag runs goreleaser (`.goreleaser.yaml`) and publishes binaries. The IANA timezone DB is embedded via `time/tzdata`, so builds work on systems without one.
 
 ## Development Practices

@@ -41,16 +41,16 @@ A terminal-based world clock for tracking time across multiple timezones. Perfec
 ```bash
 git clone https://github.com/heliostatic/tui-clock.git
 cd tui-clock
-make build
+go build -o tui-clock
 ./tui-clock
 ```
 
-Or use `make run` to build and run in one step.
+Or with [`just`](https://github.com/casey/just) installed, `just run` builds and runs in one step.
 
 ### Install to System
 
 ```bash
-make install
+go install github.com/heliostatic/tui-clock@latest
 # Binary will be installed to $(go env GOPATH)/bin/tui-clock
 ```
 
@@ -149,11 +149,11 @@ See `config.example.yaml` for a full example.
 ## Development
 
 ```bash
-make help           # Show all available commands
-make build          # Build the binary
-make test           # Run tests
-make lint           # Run golangci-lint
-make screenshots    # Regenerate README screenshots (requires VHS)
+just                # List all available recipes
+just build          # Build the binary
+just check          # Full verification gate (identical to CI)
+just test           # Run tests (race detector on)
+just screenshots    # Regenerate README screenshots (requires VHS)
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed development guidelines.
